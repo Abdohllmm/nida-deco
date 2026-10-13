@@ -1,0 +1,48 @@
+{
+  "products": [
+    {
+      "slug": "tables-basses-carrees-verre-bronze",
+      "name": "Tables basses carrées, bois et verre bronze",
+      "reference": "ND-TB-001",
+      "category": "Tables basses",
+      "shortDescription": "Ensemble de tables basses carrées à plateaux superposés, finition bois et dessus en verre teinté bronze.",
+      "description": "Ensemble de tables basses carrées sur piètement plein, avec plateaux à différentes hauteurs. Finition bois et dessus en verre teinté bronze.",
+      "materials": "Bois, plateau en verre teinté",
+      "availability": "ON_ORDER",
+      "featured": true,
+      "image": { "file": "produits/tables-basses-carrees-verre-bronze.jpg", "alt": "Tables basses carrées en bois à plateaux en verre bronze" }
+    },
+    {
+      "slug": "table-basse-carree-avec-tiroir",
+      "name": "Table basse carrée avec tiroir, bois et verre noir",
+      "reference": "ND-TB-002",
+      "category": "Tables basses",
+      "shortDescription": "Table basse carrée aux angles arrondis, avec tiroir de rangement intégré et plateau en verre noir.",
+      "description": "Table basse carrée aux angles arrondis, habillée de bois, avec un tiroir de rangement intégré dans le socle et un plateau en verre noir.",
+      "materials": "Bois, plateau en verre noir",
+      "availability": "ON_ORDER",
+      "featured": true,
+      "image": { "file": "produits/table-basse-carree-avec-tiroir.jpg", "alt": "Table basse carrée en bois avec tiroir ouvert et plateau en verre noir" }
+    },
+    {
+      "slug": "tables-basses-rondes-gigognes",
+      "name": "Tables basses rondes gigognes, bois et verre",
+      "reference": "ND-TB-003",
+      "category": "Tables basses",
+      "shortDescription": "Duo de tables basses rondes de deux hauteurs, sur pied cylindrique, avec plateaux en verre.",
+      "description": "Duo de tables basses rondes de deux hauteurs qui s'emboîtent, sur pied cylindrique en bois foncé, avec plateaux en verre.",
+      "materials": "Bois, plateau en verre",
+      "availability": "ON_ORDER",
+      "featured": true,
+      "image": { "file": "produits/tables-basses-rondes-gigognes.jpg", "alt": "Deux tables basses rondes gigognes en bois foncé à plateaux en verre" }
+    }
+  ],
+  "servicePhotos": [
+    {
+      "serviceSlug": "placards-et-rangements",
+      "file": "services/placards-et-rangements-dressing.jpg",
+      "alt": "Dressing avec penderies, étagères éclairées et îlot central",
+      "main": true
+    }
+  ]
+}

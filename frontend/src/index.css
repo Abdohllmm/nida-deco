@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/*
+ * Identité NIDAL DECO : noir et doré du logo, sur fonds blancs et gris clair.
+ * Le noir porte l'en-tête, les titres, le pied de page et quelques sections ;
+ * le doré reste un accent (filets, numéros, icônes, survols).
+ */
+@theme {
+  --color-ink: #151515;
+  --color-anthracite: #262626;
+  --color-muted: #6e6e6e;
+  --color-line: #e4e4e0;
+  /* Gris très clair des fonds de section. */
+  --color-ivory: #f6f6f4;
+  /* Beige léger d'accent. */
+  --color-sand: #f2eee6;
+  --color-gold: #b9944b;
+  --color-gold-light: #d6ba7a;
+  /* Doré assombri : le seul utilisé pour du texte sur fond clair (contraste suffisant). */
+  --color-gold-dark: #7d5f1e;
+  --color-whatsapp: #25d366;
+  --color-whatsapp-dark: #1fb959;
+  --color-danger: #b3261e;
+
+  --font-display: "Manrope Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --animate-rise: rise 0.5s ease-out both;
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-white font-sans text-ink antialiased;
+    overflow-x: hidden;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-extrabold tracking-tight text-ink;
+  }
+  /* Focus toujours visible au clavier, sur fond clair comme sur fond sombre. */
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  dialog::backdrop {
+    background: rgb(21 21 21 / 0.6);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-[1320px] px-5 sm:px-8;
+  }
+  .section {
+    @apply py-16 sm:py-20 lg:py-24;
+  }
+
+  /* Base commune des boutons (Tailwind 4 ne permet pas d'appliquer une classe composant dans une autre). */
+  .btn-primary,
+  .btn-secondary,
+  .btn-gold,
+  .btn-light,
+  .btn-whatsapp,
+  .btn-danger,
+  .btn-ghost {
+    @apply inline-flex min-h-12 cursor-pointer items-center justify-center gap-2.5 rounded-md border border-transparent px-6 py-3 font-display text-sm font-bold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply bg-ink text-white hover:bg-gold hover:text-ink;
+  }
+  .btn-secondary {
+    @apply border-ink/20 bg-white text-ink hover:border-ink hover:bg-ink hover:text-white;
+  }
+  .btn-gold {
+    @apply bg-gold text-ink hover:bg-gold-light;
+  }
+  /* Bouton contour pour les fonds sombres et les photos. */
+  .btn-light {
+    @apply border-white/50 bg-white/5 text-white backdrop-blur-sm hover:border-white hover:bg-white hover:text-ink;
+  }
+  .btn-whatsapp {
+    @apply bg-whatsapp text-ink hover:bg-whatsapp-dark;
+  }
+  .btn-danger {
+    @apply bg-danger text-white hover:bg-danger/85;
+  }
+  .btn-ghost {
+    @apply min-h-9 px-3 py-1.5 font-sans font-medium text-muted hover:bg-ivory hover:text-ink;
+  }
+
+  .link {
+    @apply font-semibold text-gold-dark underline decoration-gold/50 underline-offset-4 hover:decoration-gold-dark;
+  }
+  /* Petit label au-dessus des titres, précédé d'un filet doré. */
+  .eyebrow {
+    @apply inline-flex items-center gap-3 font-display text-xs font-bold tracking-[0.18em] text-gold-dark uppercase before:h-px before:w-8 before:bg-gold before:content-[''];
+  }
+  .eyebrow-light {
+    @apply inline-flex items-center gap-3 font-display text-xs font-bold tracking-[0.18em] text-gold-light uppercase before:h-px before:w-8 before:bg-gold before:content-[''];
+  }
+  .field-input {
+    @apply block w-full rounded-md border border-line bg-white px-3.5 py-3 text-sm text-ink placeholder:text-muted/70 focus:border-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/50 aria-[invalid=true]:border-danger;
+  }
+  .card {
+    @apply rounded-lg border border-line bg-white;
+  }
+  .prose-text {
+    @apply leading-relaxed whitespace-pre-line text-muted;
+  }
+  /* Puce de filtre (catégories, statuts). */
+  .chip {
+    @apply inline-flex min-h-10 shrink-0 cursor-pointer items-center rounded-full border border-line bg-white px-4 py-2 text-sm font-medium whitespace-nowrap text-anthracite transition-colors hover:border-ink aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-white;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

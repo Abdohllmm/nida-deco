@@ -1,0 +1,83 @@
+# Les valeurs sensibles viennent de l'environnement. En local, le fichier .env
+# à la racine du projet (ou dans backend/) est chargé s'il existe.
+spring:
+  application:
+    name: nidaldeco-backend
+  config:
+    import:
+      - "optional:file:../.env[.properties]"
+      - "optional:file:.env[.properties]"
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:${DB_PORT:5432}/${DB_NAME:nidaldeco}}
+    username: ${DB_USERNAME:nidaldeco}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: ${MEDIA_MAX_FILE_SIZE:8MB}
+      max-request-size: ${MEDIA_MAX_REQUEST_SIZE:10MB}
+
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:none}
+  error:
+    include-message: never
+    include-stacktrace: never
+    whitelabel:
+      enabled: false
+  servlet:
+    session:
+      timeout: ${SESSION_TIMEOUT:30m}
+      cookie:
+        name: NDSESSION
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:false}
+        same-site: lax
+
+app:
+  # URL publique du site (sans slash final). Sert au sitemap et aux métadonnées Open Graph.
+  public-base-url: ${APP_PUBLIC_BASE_URL:}
+  cors:
+    # Origines autorisées, séparées par des virgules. Vide = même origine uniquement.
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
+  media:
+    storage-dir: ${MEDIA_STORAGE_DIR:../data/media}
+    max-file-size: ${MEDIA_MAX_FILE_SIZE:8MB}
+  security:
+    login-max-attempts: ${LOGIN_MAX_ATTEMPTS:5}
+    login-window: ${LOGIN_WINDOW:15m}
+    contact-max-per-window: ${CONTACT_MAX_PER_WINDOW:5}
+    contact-window: ${CONTACT_WINDOW:10m}
+  frontend:
+    # Dossier du build React (frontend/dist). Vide = le backend ne sert que l'API.
+    dist-dir: ${FRONTEND_DIST_DIR:}
+  admin-cli:
+    email: ${BOOTSTRAP_ADMIN_EMAIL:${ADMIN_RESET_EMAIL:}}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:${ADMIN_RESET_PASSWORD:}}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+server:
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:native}
+  servlet:
+    session:
+      cookie:
+        secure: ${SESSION_COOKIE_SECURE:true}
+
+---
+# Commandes ponctuelles : pas de serveur web, l'application s'arrête après exécution.
+spring:
+  config:
+    activate:
+      on-profile: "bootstrap-admin | reset-admin-password"
+  main:
+    web-application-type: none
+    banner-mode: "off"

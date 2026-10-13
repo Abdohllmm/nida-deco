@@ -1,0 +1,27 @@
+# Secrets et configuration locale
+.env
+.env.local
+frontend/.env
+frontend/.env.local
+
+# Données locales (images téléversées, sauvegardes)
+data/
+backups/
+
+# Backend
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/coverage/
+
+# Éditeurs et système
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

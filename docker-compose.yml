@@ -1,0 +1,24 @@
+# PostgreSQL pour le développement local.
+# Les identifiants viennent du fichier .env (voir .env.example).
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: nidaldeco-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-nidaldeco}
+      POSTGRES_USER: ${DB_USERNAME:-nidaldeco}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Definissez DB_PASSWORD dans le fichier .env}
+    ports:
+      # Accessible uniquement depuis la machine locale.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - nidaldeco-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-nidaldeco} -d ${DB_NAME:-nidaldeco}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  nidaldeco-pgdata:

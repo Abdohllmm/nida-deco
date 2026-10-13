@@ -1,0 +1,78 @@
+[
+  {
+    "slug": "tables-basses-bois-et-marbre",
+    "title": "Tables basses en bois et marbre",
+    "category": "Mobilier sur mesure",
+    "description": "Tables basses réalisées en bois, dont un modèle à plateau en marbre installé dans un salon, et des modèles aux formes organiques avec tiroir intégré.",
+    "source": "https://www.instagram.com/nidal_deco1/p/DXcB5JwCFTm/",
+    "images": [
+      {
+        "file": "tables-basses-bois-et-marbre/01.jpg",
+        "alt": "Table basse en bois à plateau de marbre dans un salon"
+      },
+      {
+        "file": "tables-basses-bois-et-marbre/02.jpg",
+        "alt": "Tables basses gigognes en bois aux formes organiques"
+      },
+      {
+        "file": "tables-basses-bois-et-marbre/03.jpg",
+        "alt": "Table basse ronde en bois avec tiroir"
+      }
+    ]
+  },
+  {
+    "slug": "salle-a-manger-tables-en-marbre",
+    "title": "Salle à manger : tables en marbre et bois",
+    "category": "Salles à manger",
+    "description": "Tables de salle à manger à plateau de marbre et piètement en bois, associées à des chaises en bois à dossier enveloppant. Une harmonie entre le bois foncé et le marbre naturel.",
+    "source": "https://www.instagram.com/nidal_deco1/p/DXcB5JwCFTm/",
+    "images": [
+      {
+        "file": "salle-a-manger-tables-en-marbre/01.jpg",
+        "alt": "Table de salle à manger en marbre avec chaises en tissu"
+      },
+      {
+        "file": "salle-a-manger-tables-en-marbre/02.jpg",
+        "alt": "Table ovale en marbre sur piètement en bois cannelé"
+      },
+      {
+        "file": "salle-a-manger-tables-en-marbre/03.jpg",
+        "alt": "Table en marbre et fauteuils en bois à dossier enveloppant"
+      },
+      {
+        "file": "salle-a-manger-tables-en-marbre/04.jpg",
+        "alt": "Table ronde à plateau de marbre et chaises rouges"
+      }
+    ]
+  },
+  {
+    "slug": "cuisine-bois-et-vitrines-eclairees",
+    "title": "Cuisine sur mesure, bois et vitrines éclairées",
+    "category": "Cuisines",
+    "description": "Cuisine sur mesure associant des façades en bois et des meubles bas gris, avec vitrines éclairées, crédence et plan de travail d'aspect marbre et éclairage LED intégré au plafond et sous les meubles hauts.",
+    "source": "https://www.instagram.com/nidal_deco1/p/DZhrMo4iCl4/",
+    "images": [
+      {
+        "file": "cuisine-bois-et-vitrines-eclairees/01.jpg",
+        "alt": "Cuisine sur mesure en bois avec vitrines éclairées, vue d'ensemble"
+      },
+      {
+        "file": "cuisine-bois-et-vitrines-eclairees/02.jpg",
+        "alt": "Cuisine sur mesure : linéaire avec réfrigérateur et colonne vitrée"
+      },
+      {
+        "file": "cuisine-bois-et-vitrines-eclairees/03.jpg",
+        "alt": "Meubles hauts en bois et crédence d'aspect marbre éclairée"
+      },
+      {
+        "file": "cuisine-bois-et-vitrines-eclairees/04.jpg",
+        "alt": "Vitrines éclairées et meubles bas de la cuisine"
+      }
+    ],
+    "before": {
+      "file": "cuisine-bois-et-vitrines-eclairees/avant.jpg",
+      "alt": "La cuisine avant les travaux"
+    },
+    "afterIndex": 0
+  }
+]
