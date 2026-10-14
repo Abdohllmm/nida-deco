@@ -1,8 +1,10 @@
 # Secrets et configuration locale
 .env
-.env.local
+.env.*
+!.env.example
 frontend/.env
-frontend/.env.local
+frontend/.env.*
+!frontend/.env.example
 
 # Données locales (images téléversées, sauvegardes)
 data/

@@ -89,6 +89,47 @@ for (const product of manifest.products ?? []) {
   console.log(`produit créé : ${product.name} (${product.reference})`);
 }
 
+// --- Services ---
+// Créés s'ils n'existent pas encore (même slug). « demo: true » signale un service dont les
+// photos sont des illustrations de banque d'images, à remplacer par de vraies photos.
+const existingServices = new Set((await call("GET", "/api/admin/services")).map((s) => s.slug));
+for (const service of manifest.services ?? []) {
+  if (existingServices.has(service.slug)) {
+    console.log(`déjà présent, ignoré : service ${service.title}`);
+    continue;
+  }
+  const gallery = [];
+  for (const image of service.images ?? []) gallery.push(await upload(image.file, image.alt));
+  await call("POST", "/api/admin/services", {
+    title: service.title,
+    slug: service.slug,
+    shortDescription: service.shortDescription ?? "",
+    description: service.description ?? "",
+    mainImageId: gallery[0] ?? null,
+    galleryIds: gallery,
+    includedItems: service.includedItems ?? [],
+    displayOrder: service.displayOrder ?? 0,
+    status: "PUBLISHED",
+    featured: service.featured ?? false,
+    demo: service.demo ?? false,
+  });
+  console.log(`service créé : ${service.title} (${gallery.length} photo${gallery.length > 1 ? "s" : ""}${service.demo ? ", illustrations à remplacer" : ""})`);
+}
+
+// --- Photo d'accueil ---
+// Si aucune photo d'accueil n'est choisie, on reprend la photo principale d'une réalisation publiée.
+if (manifest.heroFromProject) {
+  const { logo, heroImage, ...settings } = await call("GET", "/api/admin/settings");
+  const projects = (await call("GET", "/api/admin/projects?size=48")).items;
+  const source = projects.find((p) => p.slug === manifest.heroFromProject);
+  if (heroImage) console.log("photo d'accueil déjà définie, inchangée");
+  else if (!source?.mainImage) console.log(`photo d'accueil : réalisation « ${manifest.heroFromProject} » absente (importez d'abord les réalisations)`);
+  else {
+    await call("PUT", "/api/admin/settings", { ...settings, logoId: logo?.id ?? null, heroImageId: source.mainImage.id });
+    console.log(`photo d'accueil définie depuis : ${source.title}`);
+  }
+}
+
 // --- Photos de services ---
 const services = await call("GET", "/api/admin/services");
 for (const photo of manifest.servicePhotos ?? []) {

@@ -8,6 +8,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface MediaAssetRepository extends JpaRepository<MediaAsset, UUID> {
 
+	boolean existsByFilename(String filename);
+
 	/** Nombre d'emplacements (contenus et paramètres) qui référencent encore ce média. */
 	@Query(nativeQuery = true, value = """
 			select (select count(*) from products where main_image_id = :id)

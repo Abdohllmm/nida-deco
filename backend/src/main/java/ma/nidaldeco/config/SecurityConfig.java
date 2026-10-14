@@ -26,6 +26,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import ma.nidaldeco.common.error.ApiError;
+import ma.nidaldeco.media.MediaStorageConfig;
 import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
@@ -36,14 +37,20 @@ public class SecurityConfig {
 	 * Le build React ne contient ni script ni style en ligne exécutable ; seuls les
 	 * attributs style posés par React nécessitent 'unsafe-inline' côté styles.
 	 */
-	private static final String CONTENT_SECURITY_POLICY = "default-src 'self'; img-src 'self' data: blob:; "
+	private static final String CONTENT_SECURITY_POLICY = "default-src 'self'; img-src 'self' data: blob:%s; "
 			+ "style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; "
 			+ "form-action 'self'; frame-ancestors 'none'";
 
 	private final JsonMapper jsonMapper;
 
-	public SecurityConfig(JsonMapper jsonMapper) {
+	private final String contentSecurityPolicy;
+
+	public SecurityConfig(JsonMapper jsonMapper, AppProperties properties) {
 		this.jsonMapper = jsonMapper;
+		// En stockage objet, /media redirige vers le domaine public du bucket : il doit être
+		// autorisé comme source d'images, et lui seul.
+		this.contentSecurityPolicy = CONTENT_SECURITY_POLICY
+			.formatted(MediaStorageConfig.publicOrigin(properties).map(origin -> " " + origin).orElse(""));
 	}
 
 	@Bean
@@ -66,7 +73,7 @@ public class SecurityConfig {
 					write(request, response, HttpStatus.FORBIDDEN, csrf ? "CSRF_INVALID" : "FORBIDDEN",
 							csrf ? "Jeton de sécurité absent ou expiré. Veuillez réessayer." : "Accès refusé.");
 				}))
-			.headers(headers -> headers.contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
+			.headers(headers -> headers.contentSecurityPolicy(csp -> csp.policyDirectives(contentSecurityPolicy))
 				.referrerPolicy(r -> r.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
 				.frameOptions(HeadersConfigurer.FrameOptionsConfig::deny))
 			.requestCache(AbstractHttpConfigurer::disable)

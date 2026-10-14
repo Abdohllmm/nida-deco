@@ -1,279 +1,361 @@
 # NIDAL DECO — site web et administration
 
-Site de l'entreprise NIDAL DECO (Casablanca) : présentation des services d'aménagement sur mesure, catalogue de produits avec commande par WhatsApp, réalisations, formulaire de contact et espace d'administration.
+Site de l'entreprise NIDAL DECO (Casablanca) : services d'aménagement sur mesure, catalogue de produits avec commande par WhatsApp, réalisations, demande de devis et espace d'administration.
 
-- **Frontend** : React 19, TypeScript, Vite, Tailwind CSS 4, React Router, TanStack Query, React Hook Form + Zod.
-- **Backend** : Java 21, Spring Boot 4.1 (Web MVC, Security, Data JPA, Validation), Flyway, PostgreSQL.
-- **Infrastructure locale** : Docker Compose (PostgreSQL uniquement).
+- **Frontend** : React 19, TypeScript, Vite 8, Tailwind CSS 4, React Router, TanStack Query, React Hook Form + Zod.
+- **Backend** : Java 21, Spring Boot 4.1 (Web MVC, Security, Data JPA, Validation, Actuator), Flyway, PostgreSQL.
+- **Médias** : disque local en développement, stockage objet compatible S3 (Supabase Storage) en production.
 
 ```
-/frontend            Interface React (site public + administration)
-/backend             API Spring Boot, migrations Flyway, tests
-/docker-compose.yml  PostgreSQL pour le développement
-/.env.example        Modèle de configuration (à copier en .env)
-/data/media          Images téléversées (créé au premier lancement, non versionné)
+/frontend              Interface React (site public + administration)
+/backend               API Spring Boot, migrations Flyway, tests, Dockerfile
+/contenu               Photos réelles + manifestes (réalisations, produits)
+/scripts               Import du contenu via l'API d'administration
+/docker-compose.yml    PostgreSQL pour le développement local
+/.env.example          Modèle de configuration (à copier en .env)
+/.dockerignore         Exclusions du contexte de construction Docker
 ```
 
-## 1. Prérequis
+---
 
-| Outil | Version | Remarque |
-|---|---|---|
-| Java (JDK) | 21 | `java -version` |
-| Node.js | 20 ou plus | `node -v` |
-| Docker Desktop | récent | doit être **démarré** (PostgreSQL et tests backend) |
+## 1. Architecture de production
+
+```
+Navigateur ──HTTPS──▶ Spring Boot (un seul conteneur, une seule origine)
+                        ├─ /                     build React + métadonnées Open Graph
+                        ├─ /api/**               API JSON
+                        ├─ /media/{fichier}      redirection vers le stockage objet
+                        ├─ /sitemap.xml, /robots.txt
+                        ├─ /actuator/health      état de santé (seul point Actuator exposé)
+                        │
+                        ├──▶ PostgreSQL distant (Neon ou autre)
+                        └──▶ Supabase Storage (API S3) pour les images
+```
+
+Points structurants :
+
+- **Une seule origine.** Le frontend appelle `/api`, `/media`, `/sitemap.xml` et `/robots.txt` en chemins relatifs. L'authentification repose sur une session serveur (cookie `NDSESSION`, HttpOnly, SameSite=Lax, Secure en production) et une protection CSRF par cookie `XSRF-TOKEN`. Servir le frontend depuis un autre domaine casserait la connexion et les formulaires.
+- **Spring Boot sert le build React** (dossier `FRONTEND_DIST_DIR`). Les routes de l'application retombent sur `index.html` ; le backend y inscrit le titre, la description et les balises Open Graph de la page demandée. Ce n'est pas du rendu côté serveur : le contenu reste produit par React.
+- **Les images ne sont jamais sur le disque du conteneur en production.** `/media/{fichier}` redirige vers `S3_PUBLIC_BASE_URL/media/{fichier}`.
+
+## 2. Prérequis
+
+| Pour | Il faut |
+|---|---|
+| Développer en local | Java 21, Node 22 (ou 20.19+), Docker Desktop démarré |
+| Construire l'image | Docker |
+| Déployer | Un PostgreSQL distant (par exemple Neon), un bucket Supabase Storage, un hébergeur de conteneurs Docker (Render, Railway, Koyeb, Fly.io, un serveur privé…) |
 
 Maven n'a pas besoin d'être installé : le projet embarque le Maven Wrapper (`mvnw`).
 
-Les commandes ci-dessous sont données pour **PowerShell** (Windows). Sous macOS/Linux, remplacez `.\mvnw.cmd` par `./mvnw` et `$env:NOM = "valeur"` par `export NOM=valeur`.
+Les commandes sont données pour **PowerShell**. Sous macOS/Linux, remplacez `.\mvnw.cmd` par `./mvnw` et `$env:NOM = "valeur"` par `export NOM=valeur`.
 
-## 2. Configuration
+## 3. Variables d'environnement
+
+Aucune valeur sensible n'est dans le code ni dans ce dépôt. `.env.example` liste les noms ; `.env` (jamais versionné) contient vos valeurs locales.
+
+### Base de données
+
+| Variable | Rôle |
+|---|---|
+| `DB_URL` | URL JDBC. **Obligatoire en production.** Neon : `jdbc:postgresql://HOTE.neon.tech/BASE?sslmode=require` |
+| `DB_USERNAME`, `DB_PASSWORD` | Identifiants. **Obligatoires en production.** |
+| `DB_POOL_SIZE` | Connexions maximum (5 par défaut en production) |
+| `DB_NAME`, `DB_PORT` | Développement local uniquement (Docker Compose) |
+
+### Serveur
+
+| Variable | Rôle |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | `prod` en production (déjà défini dans l'image Docker). Sans profil : développement local. |
+| `SERVER_PORT` | Port d'écoute (8080 dans l'image). S'il est absent, la variable `PORT` de l'hébergeur est utilisée. |
+| `APP_PUBLIC_BASE_URL` | URL publique du site, sans slash final. **Obligatoire en production** (sitemap, robots.txt, Open Graph). |
+| `FRONTEND_DIST_DIR` | Dossier du build React (`/app/frontend-dist` dans l'image). Vide = API seule. |
+| `SERVER_FORWARD_HEADERS_STRATEGY` | `native` en production : le schéma HTTPS et l'adresse du visiteur sont lus dans `X-Forwarded-*`. |
+| `APP_CORS_ALLOWED_ORIGINS` | À laisser vide : même origine. |
+| `SESSION_TIMEOUT` | Durée d'inactivité avant déconnexion (30 min). |
+| `SESSION_COOKIE_SECURE` | `true` en production. |
+| `LOGIN_MAX_ATTEMPTS`, `LOGIN_WINDOW` | Limitation des tentatives de connexion (5 par 15 min). |
+
+### Images
+
+| Variable | Rôle |
+|---|---|
+| `APP_MEDIA_STORAGE` | `filesystem` (défaut hors production) ou `s3` (défaut du profil `prod`) |
+| `MEDIA_MAX_FILE_SIZE`, `MEDIA_MAX_REQUEST_SIZE` | Taille maximale d'une image (8 Mo) et d'une requête (10 Mo) |
+| `MEDIA_STORAGE_DIR` | Mode `filesystem` : dossier des images |
+| `S3_ENDPOINT` | Mode `s3` : endpoint de l'API S3 |
+| `S3_REGION` | Région indiquée par le fournisseur (Supabase : région du projet, par exemple `eu-central-1`). Aucune valeur par défaut. |
+| `S3_BUCKET` | Nom du bucket |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | Clés d'accès S3 (chez Supabase : accès à tous les buckets du projet) |
+| `S3_PUBLIC_BASE_URL` | Adresse publique du bucket, sans slash final |
+
+En mode `s3`, les six variables `S3_*` sont obligatoires. S'il en manque une, **l'application refuse de démarrer** et nomme les variables manquantes, sans jamais afficher de valeur.
+
+### Commandes ponctuelles
+
+| Variable | Rôle |
+|---|---|
+| `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | Création du premier administrateur (section 7) |
+| `ADMIN_RESET_EMAIL`, `ADMIN_RESET_PASSWORD` | Réinitialisation d'un mot de passe (section 7) |
+
+## 4. Lancement local
+
+Mode développement : PostgreSQL dans Docker, images sur disque, interface servie par Vite.
 
 ```powershell
-Copy-Item .env.example .env
-```
+Copy-Item .env.example .env        # puis choisissez DB_PASSWORD dans .env
+docker compose up -d               # PostgreSQL, accessible uniquement depuis la machine
 
-Ouvrez `.env` et choisissez au minimum un mot de passe pour `DB_PASSWORD`. Ce fichier est lu par Docker Compose **et** par le backend. Il ne doit jamais être versionné (il est dans `.gitignore`).
-
-## 3. Lancer PostgreSQL
-
-```powershell
-docker compose up -d
-docker compose ps        # l'état doit être « healthy »
-```
-
-La base n'écoute que sur `127.0.0.1`. Les tables sont créées automatiquement par Flyway au démarrage du backend.
-
-## 4. Créer le premier administrateur
-
-Il n'existe ni inscription publique ni identifiant par défaut. Le premier compte se crée par une commande ponctuelle, avec des variables d'environnement **temporaires** :
-
-```powershell
-cd backend
-$env:SPRING_PROFILES_ACTIVE = "bootstrap-admin"
-$env:BOOTSTRAP_ADMIN_EMAIL = "vous@exemple.com"
-$env:BOOTSTRAP_ADMIN_PASSWORD = "un-mot-de-passe-long"     # 10 à 72 caractères
-.\mvnw.cmd spring-boot:run
-Remove-Item Env:SPRING_PROFILES_ACTIVE, Env:BOOTSTRAP_ADMIN_EMAIL, Env:BOOTSTRAP_ADMIN_PASSWORD
-```
-
-La commande crée le compte puis s'arrête. Elle **refuse de s'exécuter si un administrateur existe déjà** : elle ne peut ni recréer ni écraser un compte. Le mot de passe est haché avec BCrypt ; il n'est jamais stocké en clair. Une fois connecté, l'administrateur change son email et son mot de passe dans **Mon compte**.
-
-### Mot de passe oublié
-
-Aucune récupération par email n'est proposée, car aucun service d'email n'est configuré. La réinitialisation se fait sur le serveur, par une personne qui y a accès :
-
-```powershell
-cd backend
-$env:SPRING_PROFILES_ACTIVE = "reset-admin-password"
-$env:ADMIN_RESET_EMAIL = "vous@exemple.com"
-$env:ADMIN_RESET_PASSWORD = "nouveau-mot-de-passe-long"
-.\mvnw.cmd spring-boot:run
-Remove-Item Env:SPRING_PROFILES_ACTIVE, Env:ADMIN_RESET_EMAIL, Env:ADMIN_RESET_PASSWORD
-```
-
-## 5. Lancer le backend
-
-```powershell
 cd backend
 .\mvnw.cmd spring-boot:run                                   # base vide
-# ou, pour découvrir le site avec des contenus d'exemple :
+# ou, pour des contenus d'exemple :
 $env:SPRING_PROFILES_ACTIVE = "demo"; .\mvnw.cmd spring-boot:run
-```
 
-L'API écoute sur http://localhost:8080.
-
-### Données de démonstration
-
-Le profil `demo` crée des services, des produits (dont des bureaux) et des réalisations d'exemple. Il n'agit **que s'il est activé explicitement** et **que si la base ne contient encore aucun contenu** ; il n'est jamais actif en production par défaut.
-
-- Tout contenu d'exemple porte un badge « Démonstration » sur le site, et le tableau de bord de l'administration rappelle combien il en reste à remplacer.
-- Six services sont créés (cuisines, dressings, placards, aménagement intérieur, menuiserie bois, menuiserie aluminium) ; leurs textes sont des propositions à valider.
-- Les produits et réalisations sont fictifs et **aucun prix n'est attribué** (« Prix sur demande »).
-- Les photos sont des **visuels d'illustration issus de banques d'images** sous licence CC0 / domaine public. **Ce ne sont pas des réalisations de NIDAL DECO.** Sources et licences : `backend/src/main/resources/demo/photos/CREDITS.md`. Aucune photo n'est prise sur Instagram.
-- Ces photos font environ 1000 px de large : suffisant pour une démonstration, mais vos photos réelles devraient être plus grandes (voir section 8).
-
-Pour passer en contenu réel : ouvrez chaque élément dans l'administration, téléversez vos photos, corrigez les textes et décochez « Contenu de démonstration ».
-
-Les données de démonstration ne sont créées que sur une base sans contenu. Pour les régénérer après une mise à jour, supprimez d'abord les services, produits et réalisations existants (ou repartez d'une base vide avec `docker compose down -v`, ce qui efface **toutes** les données, compte administrateur compris).
-
-## 6. Lancer le frontend
-
-```powershell
-cd frontend
+cd ..\frontend
 npm install
 npm run dev
 ```
 
-Le site est sur http://localhost:5180 et l'administration sur http://localhost:5180/admin.
+- Site : http://localhost:5180 — administration : http://localhost:5180/admin — API : http://localhost:8080.
+- Vite relaie `/api`, `/media`, `/sitemap.xml` et `/robots.txt` vers le backend : le navigateur ne voit qu'une origine, comme en production.
+- Les images téléversées vont dans `data/media` (mode `filesystem`).
+- Créez d'abord un administrateur (section 7).
 
-Vite relaie `/api`, `/media`, `/sitemap.xml` et `/robots.txt` vers le backend : le navigateur ne voit qu'une seule origine, comme en production, et le cookie de session fonctionne sans CORS. Le port et l'adresse du backend se changent dans `frontend/.env` (voir `frontend/.env.example`).
+### Données de démonstration (profil `demo`)
 
-## 7. Logo
+Le profil `demo` crée six services, des produits et des réalisations d'exemple. Il n'agit **que s'il est activé explicitement** et **que si la base ne contient aucun contenu**.
 
-Le logo affiché par défaut est `frontend/public/logo.png` (avec `logo-192.png` et `favicon.png`). Il a été **isolé de la capture d'écran Instagram fournie** : résolution 480 × 480 px, suffisante pour l'en-tête mais limitée pour un grand format.
+- Chaque contenu d'exemple porte un badge « Démonstration » ; le tableau de bord de l'administration rappelle combien il en reste.
+- Les photos sont des visuels de banques d'images sous licence CC0 (`backend/src/main/resources/demo/photos/CREDITS.md`). **Ce ne sont pas des réalisations de NIDAL DECO.**
+- Aucun prix n'est attribué (« Prix sur demande »).
 
-Pour utiliser le fichier d'origine en meilleure qualité, au choix :
+## 5. Construction Docker
 
-- **Administration → Paramètres → Logo** : téléversez le fichier, sans toucher au code ;
-- ou remplacez les trois fichiers de `frontend/public/` puis reconstruisez le frontend.
+L'image contient le JAR et le build React. Elle se construit **depuis la racine** du dépôt :
 
-## 8. Images et médias
+```powershell
+docker build -f backend/Dockerfile -t nidal-deco .
+```
 
-### Photos fixes du site
+- Trois étapes : build React (Node 22), build Maven (Java 21), exécution (JRE 21 Alpine, utilisateur non-root).
+- **Tests pendant la construction** : les tests unitaires s'exécutent toujours. Les tests d'intégration ont besoin de Docker pour démarrer un PostgreSQL jetable ; indisponible pendant un `docker build`, ils y sont signalés comme *ignorés*. Lancez la suite complète avec `.\mvnw.cmd test` (section 9) avant de construire.
+- Pour sauter tous les tests : `--build-arg SKIP_TESTS=true`.
+- L'image ne contient ni `.env`, ni médias locaux, ni `node_modules`, ni le dossier `contenu/` (voir `.dockerignore`).
 
-Outre les contenus gérés dans l'administration, le site utilise quelques photos d'ambiance fixes, dans `frontend/public/images/` :
+### Lancer l'image en local
 
-| Fichier | Emplacement |
-|---|---|
-| `hero.jpg` | Accueil, tant qu'aucune « Photo de l'accueil » n'est choisie dans **Paramètres** |
-| `about.jpg` | Accueil, section de présentation |
-| `cta.jpg` | Accueil, fond de la section « Vous avez un projet d'aménagement ? » |
-| `banner-services.jpg`, `banner-produits.jpg`, `banner-realisations.jpg`, `banner-contact.jpg`, `banner-about.jpg` | Bandeau d'en-tête des pages correspondantes |
+Créez un fichier `.env.docker` (non versionné) :
 
-Ce sont également des visuels d'illustration CC0 (voir `frontend/public/images/CREDITS.md`). Pour les remplacer, déposez vos photos sous les mêmes noms (format paysage, 1600 à 1920 px de large recommandé) puis reconstruisez le frontend. La photo de l'accueil se change sans reconstruction, depuis **Administration → Paramètres**.
+```
+DB_URL=jdbc:postgresql://HOTE:5432/BASE
+DB_USERNAME=...
+DB_PASSWORD=...
+APP_PUBLIC_BASE_URL=http://localhost:8080
+SESSION_COOKIE_SECURE=false
+APP_MEDIA_STORAGE=s3
+S3_ENDPOINT=...
+S3_REGION=eu-central-1
+S3_BUCKET=...
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_PUBLIC_BASE_URL=...
+```
 
-### Images téléversées
+```powershell
+docker run --rm -p 8080:8080 --env-file .env.docker nidal-deco
+```
 
-- Formats acceptés : **JPEG, PNG, WebP**. Taille maximale : `MEDIA_MAX_FILE_SIZE` (8 Mo par défaut).
-- Le type est vérifié sur le **contenu réel** du fichier (signature binaire), pas sur son nom ni sur le type annoncé par le navigateur.
-- Le nom enregistré est généré par le serveur (UUID + extension). Le nom d'origine n'est jamais utilisé comme chemin.
-- Les fichiers sont écrits dans `MEDIA_STORAGE_DIR` (`data/media` à la racine par défaut), **hors du code source**, et servis uniquement comme images.
-- Une image utilisée par un contenu ou par les paramètres ne peut pas être supprimée.
-- Chaque image a un texte alternatif modifiable ; l'ordre des galeries se règle dans les formulaires.
+- `SESSION_COOKIE_SECURE=false` n'est nécessaire qu'en HTTP local : en HTTPS, laissez la valeur par défaut.
+- Pour essayer sans stockage objet, avec le PostgreSQL de Docker Compose et des images sur le disque du conteneur (perdues à son arrêt) :
 
-Le stockage passe par l'interface `MediaStorage` (`backend/.../media`). L'implémentation fournie écrit sur disque ; un stockage objet peut la remplacer sans toucher au reste du code.
+```powershell
+docker run --rm -p 8080:8080 --network projetnidaldeco_default `
+  -e DB_URL=jdbc:postgresql://postgres:5432/nidaldeco -e DB_USERNAME=nidaldeco -e DB_PASSWORD=VOTRE_MOT_DE_PASSE `
+  -e APP_PUBLIC_BASE_URL=http://localhost:8080 -e SESSION_COOKIE_SECURE=false -e APP_MEDIA_STORAGE=filesystem `
+  nidal-deco
+```
 
-### Réalisations réelles importées
+Le site est alors sur http://localhost:8080 et l'état de santé sur http://localhost:8080/actuator/health.
 
-Le dossier `contenu/realisations/` contient les photos de trois réalisations de l'entreprise, reprises de ses publications Instagram à sa demande (cuisine, tables de salle à manger, tables basses), et un fichier `manifest.json` qui décrit les fiches : titre, type de projet, description, photos, avant/après.
+## 6. Déploiement
 
-Ces fiches vivent dans la base de données. Pour les recréer sur une autre installation (serveur de production, base neuve) :
+Le projet ne se déploie pas seul : voici la marche à suivre sur un hébergeur de conteneurs.
+
+### 6.1 PostgreSQL (exemple : Neon)
+
+1. Créez un projet et une base.
+2. Relevez l'hôte, la base, l'utilisateur et le mot de passe.
+3. Formez l'URL JDBC : `jdbc:postgresql://HOTE/BASE?sslmode=require` (sans identifiants dans l'URL). Préférez l'hôte de connexion directe à l'hôte « pooler ».
+
+Les tables sont créées par Flyway au premier démarrage.
+
+### 6.2 Supabase Storage (images)
+
+Supabase sert **uniquement** au stockage des images, par son API compatible S3. Ni sa base de données ni son authentification ne sont utilisées.
+
+1. **Projet** : sur supabase.com, *New project*, plan **Free**, dans une région proche (par exemple *Central EU (Frankfurt)*). Le mot de passe de base demandé à la création ne sert pas à ce site ; conservez-le quand même.
+2. **Bucket** : *Storage → New bucket*, nom `nidal-deco-media`, option **Public bucket** activée. Vous pouvez limiter les types à `image/jpeg, image/png, image/webp` et la taille à 8 Mo. Ce bucket ne doit contenir que les images du site : tout ce qu'il contient est lisible par quiconque en connaît l'adresse.
+3. **Connexion S3** : *Storage → S3* (ou *Storage → Settings*). Activez la connexion S3 si elle ne l'est pas, puis relevez :
+   - **Endpoint** → `S3_ENDPOINT`, de la forme `https://REF.storage.supabase.co/storage/v1/s3` ;
+   - **Region** → `S3_REGION`, par exemple `eu-central-1`. Jamais `auto`.
+4. **Clés S3** : au même endroit, *New access key*. L'*Access key ID* est `S3_ACCESS_KEY_ID` ; le *Secret access key*, affiché une seule fois, est `S3_SECRET_ACCESS_KEY`.
+5. **Adresse publique** : `S3_PUBLIC_BASE_URL` = `https://REF.supabase.co/storage/v1/object/public/nidal-deco-media`, sans slash final. `REF` est la référence du projet, visible dans l'adresse du tableau de bord.
+
+Ne confondez pas les deux adresses : `S3_ENDPOINT` est l'API par laquelle le serveur envoie et supprime les fichiers ; `S3_PUBLIC_BASE_URL` est l'adresse où les navigateurs lisent les images. L'application vérifie leur forme au démarrage et refuse de démarrer si elles sont inversées, si elles ne désignent pas le même projet ou si l'adresse publique ne se termine pas par le nom du bucket.
+
+Fonctionnement : chaque image est enregistrée sous la clé `media/{uuid}.{jpg|png|webp}` et lue à `S3_PUBLIC_BASE_URL/media/{uuid}.jpg`. Sur le site, l'adresse reste `/media/{uuid}.jpg`, qui redirige vers Supabase. Le domaine Supabase est automatiquement autorisé comme source d'images dans la politique de sécurité du site (CSP).
+
+À savoir :
+
+- **Les clés S3 de Supabase donnent accès à tous les buckets du projet** et contournent ses règles d'accès. Elles ne doivent exister que dans les variables du serveur. Ne créez pas d'autres buckets sensibles dans ce projet.
+- **Offre gratuite** : 1 Go de fichiers, 5 Go de trafic sortant par mois, 2 projets actifs. En cas de dépassement, Supabase restreint le service ; il ne facture pas l'offre gratuite d'après sa documentation.
+- **Mise en pause** : un projet gratuit est mis en pause après environ une semaine sans activité suffisante. Les images du site deviennent alors illisibles jusqu'à ce que vous le réactiviez depuis le tableau de bord Supabase. La documentation ne précise pas si la simple lecture d'images compte comme activité.
+- Les images supprimées le sont définitivement (pas de versions).
+
+### 6.3 Hébergeur de conteneurs (Render, Railway…)
+
+Le fichier `render.yaml` à la racine décrit ce service pour Render (Blueprint) : plan `free` explicite, région Francfort, aucun secret. Sur Render : *New → Blueprint*, choisissez le dépôt, puis saisissez les valeurs demandées. À la main, ou sur un autre hébergeur :
+
+1. Créez un service web **à partir du dépôt Git**, type Docker, avec :
+   - chemin du Dockerfile : `backend/Dockerfile` ;
+   - contexte de construction : la **racine** du dépôt.
+2. Ajoutez les variables : `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `APP_PUBLIC_BASE_URL`, et les six `S3_*`. `SPRING_PROFILES_ACTIVE=prod`, `FRONTEND_DIST_DIR` et `APP_MEDIA_STORAGE=s3` sont déjà les valeurs de l'image.
+3. **Port** : l'image écoute sur 8080. Si l'hébergeur impose un autre port, donnez à `SERVER_PORT` la valeur attendue.
+4. **Contrôle de santé** : chemin `/actuator/health`.
+5. **Domaine et HTTPS** : l'hébergeur fournit le certificat. Mettez l'adresse finale (`https://…`, sans slash) dans `APP_PUBLIC_BASE_URL`, puis redéployez.
+6. Créez l'administrateur (section 7), puis importez le contenu (section 8).
+
+Ne séparez pas le frontend sur un autre domaine (Vercel, Netlify…) : la session et le CSRF exigent une origine unique.
+
+### 6.4 Sur un serveur privé avec disque persistant
+
+Même image, avec `APP_MEDIA_STORAGE=filesystem`, `MEDIA_STORAGE_DIR=/app/data/media` et un volume monté sur ce dossier (`-v nidal-medias:/app/data/media`). Placez un reverse proxy HTTPS devant (Caddy, Nginx…), qui transmet `X-Forwarded-Proto` et `X-Forwarded-For` et accepte des requêtes de 10 Mo.
+
+## 7. Premier administrateur
+
+Il n'existe ni inscription publique ni identifiant par défaut. Le premier compte se crée par une commande ponctuelle, sans serveur web : le processus crée le compte et s'arrête.
+
+**Avec le JAR**, vers la base distante :
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = "bootstrap-admin"
+$env:BOOTSTRAP_ADMIN_EMAIL = "vous@exemple.com"
+$env:BOOTSTRAP_ADMIN_PASSWORD = "un-mot-de-passe-long"      # 10 à 72 caractères
+$env:DB_URL = "jdbc:postgresql://HOTE/BASE?sslmode=require"
+$env:DB_USERNAME = "..."
+$env:DB_PASSWORD = "..."
+java -jar backend\target\nidaldeco-backend-0.0.1-SNAPSHOT.jar
+Remove-Item Env:SPRING_PROFILES_ACTIVE, Env:BOOTSTRAP_ADMIN_EMAIL, Env:BOOTSTRAP_ADMIN_PASSWORD, Env:DB_URL, Env:DB_USERNAME, Env:DB_PASSWORD
+```
+
+(Le JAR se construit avec `cd backend; .\mvnw.cmd package -DskipTests`.)
+
+**Avec l'image Docker** :
+
+```powershell
+docker run --rm `
+  -e SPRING_PROFILES_ACTIVE=bootstrap-admin `
+  -e BOOTSTRAP_ADMIN_EMAIL=vous@exemple.com -e BOOTSTRAP_ADMIN_PASSWORD=un-mot-de-passe-long `
+  -e "DB_URL=jdbc:postgresql://HOTE/BASE?sslmode=require" -e DB_USERNAME=... -e DB_PASSWORD=... `
+  nidal-deco
+```
+
+**En local**, depuis `backend/` (la base est lue dans `.env`) : définissez les trois premières variables puis `.\mvnw.cmd spring-boot:run`.
+
+Comportement :
+
+- Le compte n'est créé **que si aucun administrateur n'existe**. Sinon la commande refuse et ne modifie rien.
+- Variables absentes ou invalides : refus.
+- **Code de sortie** : `0` si le compte est créé, `2` en cas de refus (le motif est dans les journaux).
+- Le mot de passe n'est jamais affiché ni journalisé ; il est stocké haché (BCrypt).
+
+### Mot de passe oublié
+
+Aucune récupération par email (aucun service d'email n'est configuré). Même commande, avec `SPRING_PROFILES_ACTIVE=reset-admin-password`, `ADMIN_RESET_EMAIL` et `ADMIN_RESET_PASSWORD`.
+
+## 8. Importer le contenu
+
+Après un premier déploiement, la base ne contient que les paramètres de l'entreprise.
+
+Deux scripts créent le contenu réel en passant par l'API d'administration, avec les mêmes contrôles que les formulaires. Le profil `demo` n'est pas nécessaire. Ils ignorent ce qui existe déjà et peuvent être relancés sans créer de doublon.
 
 ```powershell
 $env:ADMIN_EMAIL = "vous@exemple.com"; $env:ADMIN_PASSWORD = "votre-mot-de-passe"
-$env:SITE_URL = "http://localhost:8080"      # adresse du site visé
-node scripts/importer-realisations.mjs
+$env:SITE_URL = "https://votre-domaine"
+node scripts/importer-realisations.mjs      # contenu/realisations/manifest.json
+node scripts/importer-catalogue.mjs         # contenu/catalogue/manifest.json
 ```
 
-Le script passe par l'API d'administration (mêmes contrôles que les formulaires) et ignore les réalisations déjà présentes : il peut être relancé sans risque. Pour ajouter d'autres projets de la même façon, déposez les photos dans le dossier et complétez `manifest.json` ; sinon, utilisez simplement **Administration → Réalisations**.
+Lancez-les dans cet ordre :
 
-### Produits réels importés
+1. `importer-realisations.mjs` : trois réalisations (cuisine, salle à manger, tables basses), reprises des publications Instagram de l'entreprise à sa demande.
+2. `importer-catalogue.mjs` :
+   - trois tables basses fournies par l'entreprise, sans prix (« Prix sur demande ») ;
+   - les six services. Quatre utilisent de vraies photos ; « Dressings sur mesure » et « Menuiserie aluminium » utilisent des illustrations de banque d'images et portent le badge « Démonstration » jusqu'à ce que vous les remplaciez ;
+   - la photo d'accueil, reprise de la réalisation cuisine si aucune n'est encore choisie.
 
-De la même façon, `contenu/catalogue/` contient les photos des produits fournis par l'entreprise (trois tables basses) et une photo ajoutée au service « Placards et rangements », décrits dans son `manifest.json`. Le script `node scripts/importer-catalogue.mjs` (mêmes variables `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `SITE_URL`) les recrée sur une autre installation et ignore ce qui existe déjà. Les produits sont créés sans prix (« Prix sur demande ») ; ajoutez un prix dans le manifeste ou dans l'administration.
+Les photos importées sont envoyées dans le stockage configuré (Supabase Storage en production).
 
-### Second numéro
-
-Un second téléphone et un second numéro WhatsApp se règlent dans **Administration → Paramètres**. Ils s'affichent dans les coordonnées (page Contact, accueil, pied de page). Les boutons « Commander sur WhatsApp », « Écrire sur WhatsApp » et le bouton flottant utilisent toujours le numéro principal.
-
-## 9. Demande de devis
-
-Le formulaire de devis est accessible partout : bouton « Demander un devis » de l'en-tête et du menu mobile (fenêtre modale), hero, pages services et réalisations, bas de l'accueil (version courte) et page `/contact` (`/contact?type=devis` amène directement au formulaire).
-
-Champs : nom complet, téléphone, email (facultatif), type de projet, ville ou quartier (facultatif), budget envisagé (facultatif), message, et accord pour être recontacté (obligatoire, vérifié aussi par le serveur). La demande est enregistrée et consultable dans **Administration → Demandes**. Le site ne promet ni gratuité du devis ni délai de réponse : ajoutez ces mentions uniquement si l'entreprise les confirme.
-
-## 9 bis. WhatsApp
-
-Le numéro se règle dans **Administration → Paramètres → Numéro WhatsApp international**, au format international sans `+`, sans espace et sans `0` initial : `212661568771`. C'est la **seule** source du numéro pour tout le site. S'il est vide, les boutons WhatsApp sont masqués.
-
-Le site construit un lien `https://wa.me/<numéro>?text=<message encodé>` et **se contente d'ouvrir WhatsApp** avec un message prérempli : il n'envoie rien, n'enregistre aucune commande et ne propose aucun paiement. Il n'y a pas d'intégration WhatsApp Business API.
-
-## 10. Tests
+## 9. Tests
 
 | Suite | Commande | Prérequis |
 |---|---|---|
-| Backend (39 tests) | `cd backend; .\mvnw.cmd test` | Docker démarré (base PostgreSQL jetable via Testcontainers) |
+| Backend (66 tests) | `cd backend; .\mvnw.cmd test` | Docker démarré (PostgreSQL jetable via Testcontainers). Sans Docker, les tests d'intégration sont ignorés. |
 | Frontend (26 tests) | `cd frontend; npm test` | aucun |
 | Typage | `cd frontend; npm run typecheck` | aucun |
 | E2E Playwright (13 tests) | voir ci-dessous | application lancée |
 
-Les tests E2E pilotent un vrai navigateur contre l'application en marche. Il faut : PostgreSQL démarré, le backend lancé **avec le profil `demo`** sur une base initialement vide, et un administrateur existant.
+Les tests du stockage S3 utilisent un client simulé : aucun appel réseau vers Supabase ou Neon.
+
+Tests E2E : PostgreSQL démarré, backend lancé avec le profil `demo` et le contenu importé, un administrateur existant.
 
 ```powershell
 cd frontend
 npx playwright install chromium          # une seule fois
-$env:E2E_ADMIN_EMAIL = "vous@exemple.com"
-$env:E2E_ADMIN_PASSWORD = "votre-mot-de-passe"
+$env:E2E_ADMIN_EMAIL = "vous@exemple.com"; $env:E2E_ADMIN_PASSWORD = "votre-mot-de-passe"
 npm run e2e
 ```
 
-Sans ces deux variables, les tests d'administration sont ignorés. `E2E_BASE_URL` permet de viser une autre adresse (par exemple `http://localhost:8080` pour tester le build servi par Spring). Les tests n'envoient aucun message WhatsApp : ils inspectent seulement le lien généré. Les tests du formulaire de devis laissent des demandes nommées « E2E … » dans la base, à supprimer depuis l'administration.
+`E2E_BASE_URL` vise une autre adresse (par exemple `http://localhost:8080`). Les tests n'envoient aucun message WhatsApp. Ils laissent des demandes nommées « E2E … », à supprimer dans l'administration.
 
-## 11. Déploiement en production (HTTPS)
+## 10. Fonctionnement à connaître
 
-Un seul processus Java sert l'API **et** l'interface web.
+- **Logo** : `frontend/public/logo.png` par défaut (isolé d'une capture, 480 px). Remplaçable sans toucher au code dans **Administration → Paramètres**.
+- **Photos fixes** : `frontend/public/images/` contient la photo d'accueil par défaut et les bandeaux de page (visuels CC0, voir `CREDITS.md`). La photo d'accueil se change dans **Paramètres** ; les autres se remplacent par des fichiers de même nom, puis reconstruction.
+- **Images téléversées** : JPEG, PNG ou WebP, vérifiés sur leur contenu réel ; le nom enregistré est généré par le serveur ; une image utilisée ne peut pas être supprimée.
+- **WhatsApp** : numéro principal et second numéro dans **Paramètres**, au format international sans `+` (`212661568771`). Le site ouvre seulement une conversation avec un message prérempli : il n'envoie rien et n'enregistre aucune commande. Les boutons de commande utilisent le numéro principal.
+- **Devis** : formulaire accessible partout (en-tête, hero, services, réalisations, `/contact?type=devis`). Les demandes sont dans **Administration → Demandes**. Aucun email n'est envoyé.
+- **SEO** : `sitemap.xml` ne liste que les contenus publiés ; `robots.txt` exclut `/admin` et `/api` ; un contenu inexistant ou en brouillon répond avec un vrai statut 404.
+- **Identité visuelle** : couleurs et polices définies une seule fois dans `frontend/src/index.css` (bloc `@theme`).
 
-1. Construire l'interface : `cd frontend; npm ci; npm run build` → dossier `frontend/dist`.
-2. Construire l'API : `cd backend; .\mvnw.cmd package` → `backend/target/nidaldeco-backend-0.0.1-SNAPSHOT.jar`.
-3. Sur le serveur, fournir un PostgreSQL et définir les variables d'environnement :
+## 11. Sauvegardes
 
-   | Variable | Valeur |
-   |---|---|
-   | `SPRING_PROFILES_ACTIVE` | `prod` (cookie de session `Secure`, prise en compte du proxy). **Ne pas ajouter `demo`.** |
-   | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | accès à la base |
-   | `APP_PUBLIC_BASE_URL` | `https://votre-domaine.ma` (sitemap, Open Graph) |
-   | `FRONTEND_DIST_DIR` | chemin absolu du dossier `dist` |
-   | `MEDIA_STORAGE_DIR` | dossier persistant, hors du répertoire de l'application |
+Deux éléments, à sauvegarder ensemble puisque la base référence les fichiers :
 
-4. Lancer `java -jar nidaldeco-backend-0.0.1-SNAPSHOT.jar`, puis créer l'administrateur (section 4, avec la même configuration de base).
-5. Placer un **reverse proxy HTTPS** devant l'application (Nginx, Caddy, Traefik…) avec un certificat valide, par exemple Let's Encrypt. Il doit transmettre `X-Forwarded-Proto` et `X-Forwarded-For`, et autoriser des corps de requête d'au moins `MEDIA_MAX_REQUEST_SIZE` (10 Mo par défaut). Rediriger HTTP vers HTTPS et n'exposer publiquement ni le port 8080 ni PostgreSQL.
+- **Base** : `pg_dump` vers un fichier (`pg_dump -F c -d "postgresql://…" -f nidaldeco.dump`), ou les sauvegardes de votre fournisseur. Restauration : `pg_restore --clean --if-exists`.
+- **Images** : le bucket Supabase (téléchargeable depuis son tableau de bord ou par l'API S3 ; ou, en mode `filesystem`, le dossier `MEDIA_STORAGE_DIR`).
 
-`APP_CORS_ALLOWED_ORIGINS` reste vide tant que l'interface et l'API partagent le même domaine, ce qui est le cas ici.
+Planifiez-les, conservez les copies ailleurs et testez une restauration.
 
-Le déploiement lui-même n'a pas été réalisé ni testé sur un serveur : seul le fonctionnement local du JAR servant le build a été vérifié.
+## 12. Limites importantes
 
-## 12. Sauvegardes
-
-Deux éléments sont à sauvegarder **ensemble** (la base référence les fichiers) :
-
-```powershell
-# Base de données
-docker exec nidaldeco-postgres pg_dump -U nidaldeco -d nidaldeco -F c -f /tmp/nidaldeco.dump
-docker cp nidaldeco-postgres:/tmp/nidaldeco.dump .\backups\nidaldeco-AAAA-MM-JJ.dump
-
-# Images
-Compress-Archive -Path .\data\media -DestinationPath .\backups\media-AAAA-MM-JJ.zip
-```
-
-Restauration : `pg_restore --clean --if-exists -U nidaldeco -d nidaldeco fichier.dump`, puis remise en place du dossier des médias. En production, adaptez ces commandes à votre PostgreSQL, planifiez-les, conservez les copies hors du serveur et **testez une restauration**.
-
-## 13. SEO et partage de liens
-
-- Chaque page a un titre et une description ; `sitemap.xml` ne liste que les contenus publiés ; `robots.txt` exclut `/admin` et `/api`.
-- **Ce n'est pas du rendu côté serveur (SSR).** Le contenu des pages est produit par React dans le navigateur.
-- Pour les aperçus de liens (WhatsApp, réseaux sociaux), dont les robots n'exécutent pas JavaScript, le backend inscrit le titre, la description et les balises Open Graph de la page demandée directement dans le HTML qu'il sert. Cela ne fonctionne **que lorsque Spring sert l'interface** (`FRONTEND_DIST_DIR`) : derrière le serveur Vite de développement, les métadonnées ne sont posées que par JavaScript.
-- Un produit, service ou projet inexistant ou en brouillon répond avec un vrai statut HTTP 404.
-
-## 14. Sécurité — points clés
-
-- Session serveur avec cookie `HttpOnly`, `SameSite=Lax`, `Secure` en production ; expiration après 30 min d'inactivité (`SESSION_TIMEOUT`).
-- Protection CSRF sur toutes les écritures ; CORS fermé par défaut.
-- Connexion limitée à 5 échecs par quart d'heure (par adresse IP et email) ; message d'erreur identique que le compte existe ou non.
-- Les routes `/api/admin/**` sont protégées par le backend ; les routes publiques n'exposent que les contenus publiés.
-
-## 15. Limites et fonctionnalités non implémentées
-
-- **Pas de paiement en ligne, de panier ni de commande enregistrée** : la commande se fait dans WhatsApp, par choix.
-- **Aucun email n'est envoyé** (ni notification de nouvelle demande, ni confirmation au visiteur, ni récupération de mot de passe). Les demandes se consultent dans l'administration.
-- **Un seul rôle administrateur**, sans gestion de plusieurs comptes depuis l'interface.
-- **Sessions et limitation des tentatives en mémoire** : un redémarrage déconnecte l'administrateur, et le dispositif suppose une seule instance du backend.
-- **Changer de mot de passe ne ferme pas les autres sessions** déjà ouvertes ; elles expirent d'elles-mêmes.
-- **Images non redimensionnées** : elles sont servies telles que téléversées. Préparez des photos raisonnables (environ 2000 px de large) ; l'orientation EXIF des photos de téléphone n'est pas corrigée.
-- **Comparatif avant/après** : une seule paire d'images par réalisation.
-- **Pas de filtre anti-spam avancé** sur le formulaire de devis, hormis une limite de 5 envois par 10 minutes et par adresse IP.
-- **Photos de démonstration en résolution limitée** (environ 1000 px) : le hero est conçu en deux volets pour rester net, mais des photos réelles plus grandes donneront un meilleur rendu.
+- **Mise en veille et démarrage lent** : une instance gratuite (0,1 CPU, 512 Mo) s'endort après 15 minutes sans visite. Le réveil relance Spring Boot. Mesuré sur un conteneur local bridé à 0,1 CPU : environ 7 minutes de démarrage, puis une première page en une dizaine de secondes ; la mémoire reste autour de 200 Mo. Le temps réel dépend du matériel de l'hébergeur. L'image est déjà réglée pour ce cas (compilateur JIT allégé, initialisation paresseuse) ; sur un serveur plus puissant, `APP_LAZY_INITIALIZATION=false` et un autre `JAVA_TOOL_OPTIONS` conviennent mieux.
+- **Session en mémoire** : un redémarrage, un redéploiement ou un réveil déconnecte l'administrateur. Le dispositif suppose une seule instance du backend ; il en va de même pour la limitation des tentatives de connexion.
+- **Persistance des images** : uniquement via le stockage objet. En mode `filesystem` sur un hébergeur à disque éphémère, elles disparaissent à chaque redémarrage.
+- **Origine unique** : le frontend et l'API doivent rester sur le même domaine (cookies de session et CSRF).
+- **Pas de paiement, de panier ni de commande enregistrée** : la commande se conclut dans WhatsApp.
+- **Aucun email** : ni notification, ni confirmation, ni récupération de mot de passe.
+- **Un seul rôle administrateur.** Changer de mot de passe ne ferme pas les autres sessions ouvertes.
+- **Images non redimensionnées** : servies telles que téléversées ; préparez des photos d'environ 2000 px de large.
 - **Site en français uniquement.**
-- **Mentions légales et politique de confidentialité** : ce sont des structures à compléter, exclues de l'indexation et **non validées juridiquement**.
+- **Pages légales** : structures à compléter, exclues de l'indexation et non validées juridiquement.
+- **Non vérifié** : le déploiement réel sur un hébergeur, la connexion à Neon et à Supabase Storage. Ont été vérifiés en local : la construction de l'image, son exécution contre PostgreSQL, et le mode `s3` contre un mini-serveur S3 de test (envoi, lecture par redirection, suppression, fichier identique à l'original). Ce serveur de test ne contrôle pas les signatures : le premier envoi d'image sur le stockage réel reste à valider.
 
-## 16. Informations à fournir par l'entreprise
+## 13. Informations à fournir par l'entreprise
 
-À renseigner dans l'administration ou à transmettre :
-
-- Photos réelles (produits, réalisations, accueil, bandeaux de page) dont l'entreprise détient les droits, et le logo en haute définition.
-- Liste réelle des produits : références, prix éventuels, dimensions, matériaux, disponibilités.
+- Photos réelles supplémentaires (services, dressings, bandeaux de page) et logo en haute définition.
+- Prix, dimensions et disponibilités réels des produits.
 - Textes validés des services et de la présentation.
 - Adresse, horaires et email de contact, s'ils doivent être affichés.
 - Identité juridique (raison sociale, RC, ICE, IF), hébergeur et durée de conservation des données, pour les pages légales.
-
-## 17. Identité visuelle
-
-Site de prestations orienté devis et réalisations : noir du logo pour l'en-tête des pages, les titres, le pied de page et quelques sections fortes ; fonds blancs et gris très clair ailleurs ; doré réservé aux accents (filet d'en-tête, labels, numéros, icônes, survols, bouton principal sur fond sombre). Typographie sans empattement : **Manrope** pour les titres (700–800) et **Inter** pour le texte, hébergées avec le site. Les couleurs et polices sont définies une seule fois, dans `frontend/src/index.css` (bloc `@theme`).

@@ -18,7 +18,22 @@ public record AppProperties(String publicBaseUrl, Cors cors, Media media, Securi
 		}
 	}
 
-	public record Media(String storageDir, DataSize maxFileSize) {
+	/**
+	 * storage : « filesystem » (disque local, développement) ou « s3 » (stockage objet
+	 * compatible S3, obligatoire sur un hébergeur à disque éphémère).
+	 */
+	public record Media(String storage, String storageDir, DataSize maxFileSize, S3 s3) {
+	}
+
+	public record S3(String endpoint, String region, String bucket, String accessKeyId, String secretAccessKey,
+			String publicBaseUrl) {
+
+		/** Ne révèle jamais les identifiants, même si l'objet est journalisé par erreur. */
+		@Override
+		public String toString() {
+			return "S3[endpoint=" + endpoint + ", region=" + region + ", bucket=" + bucket
+					+ ", accessKeyId=***, secretAccessKey=***, publicBaseUrl=" + publicBaseUrl + "]";
+		}
 	}
 
 	public record Security(int loginMaxAttempts, Duration loginWindow, int contactMaxPerWindow,

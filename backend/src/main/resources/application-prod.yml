@@ -1,0 +1,51 @@
+# Profil de production (SPRING_PROFILES_ACTIVE=prod).
+# Tout ce qui est sensible ou propre à l'hébergement est lu dans l'environnement :
+# aucun mot de passe, aucune clé, aucune adresse n'est écrit ici.
+#
+# Ce profil n'active jamais les données de démonstration : elles n'existent que
+# sous le profil « demo », à ne pas ajouter en production.
+spring:
+  main:
+    # Les composants sont créés à leur premier usage : démarrage nettement plus court sur une
+    # petite instance, au prix d'une première requête un peu plus lente. La configuration du
+    # stockage des médias reste vérifiée au démarrage (voir MediaStorageConfig).
+    lazy-initialization: ${APP_LAZY_INITIALIZATION:true}
+  data:
+    jpa:
+      repositories:
+        bootstrap-mode: lazy
+  datasource:
+    # Obligatoires en production : aucune valeur par défaut.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      # Les bases gérées gratuites limitent le nombre de connexions.
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+server:
+  # Derrière le proxy HTTPS de l'hébergeur : schéma et adresse du visiteur sont lus dans X-Forwarded-*.
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:native}
+  servlet:
+    session:
+      timeout: ${SESSION_TIMEOUT:30m}
+      cookie:
+        # Le cookie de session n'est transmis qu'en HTTPS.
+        secure: ${SESSION_COOKIE_SECURE:true}
+
+app:
+  # Requis pour des liens corrects dans sitemap.xml, robots.txt et les balises Open Graph.
+  # À défaut, l'adresse fournie par l'hébergeur (RENDER_EXTERNAL_URL sur Render) est utilisée.
+  public-base-url: ${APP_PUBLIC_BASE_URL:${RENDER_EXTERNAL_URL:}}
+  cors:
+    # Vide : le site et l'API partagent la même origine.
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
+  media:
+    # Stockage objet par défaut : les hébergeurs de conteneurs ont un disque éphémère.
+    # Avec un vrai disque persistant, définir APP_MEDIA_STORAGE=filesystem.
+    storage: ${APP_MEDIA_STORAGE:s3}

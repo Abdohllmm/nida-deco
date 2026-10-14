@@ -11,19 +11,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Component;
 
-import ma.nidaldeco.config.AppProperties;
-
-@Component
+/** Stockage sur disque local : développement, ou serveur disposant d'un disque persistant. */
 public class FilesystemMediaStorage implements MediaStorage {
 
 	private static final Logger log = LoggerFactory.getLogger(FilesystemMediaStorage.class);
 
 	private final Path root;
 
-	public FilesystemMediaStorage(AppProperties properties) {
-		this.root = Path.of(properties.media().storageDir()).toAbsolutePath().normalize();
+	public FilesystemMediaStorage(String storageDir) {
+		this.root = Path.of(storageDir).toAbsolutePath().normalize();
 		try {
 			Files.createDirectories(root);
 		}

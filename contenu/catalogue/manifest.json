@@ -10,7 +10,10 @@
       "materials": "Bois, plateau en verre teinté",
       "availability": "ON_ORDER",
       "featured": true,
-      "image": { "file": "produits/tables-basses-carrees-verre-bronze.jpg", "alt": "Tables basses carrées en bois à plateaux en verre bronze" }
+      "image": {
+        "file": "produits/tables-basses-carrees-verre-bronze.jpg",
+        "alt": "Tables basses carrées en bois à plateaux en verre bronze"
+      }
     },
     {
       "slug": "table-basse-carree-avec-tiroir",
@@ -22,7 +25,10 @@
       "materials": "Bois, plateau en verre noir",
       "availability": "ON_ORDER",
       "featured": true,
-      "image": { "file": "produits/table-basse-carree-avec-tiroir.jpg", "alt": "Table basse carrée en bois avec tiroir ouvert et plateau en verre noir" }
+      "image": {
+        "file": "produits/table-basse-carree-avec-tiroir.jpg",
+        "alt": "Table basse carrée en bois avec tiroir ouvert et plateau en verre noir"
+      }
     },
     {
       "slug": "tables-basses-rondes-gigognes",
@@ -34,15 +40,164 @@
       "materials": "Bois, plateau en verre",
       "availability": "ON_ORDER",
       "featured": true,
-      "image": { "file": "produits/tables-basses-rondes-gigognes.jpg", "alt": "Deux tables basses rondes gigognes en bois foncé à plateaux en verre" }
+      "image": {
+        "file": "produits/tables-basses-rondes-gigognes.jpg",
+        "alt": "Deux tables basses rondes gigognes en bois foncé à plateaux en verre"
+      }
     }
   ],
-  "servicePhotos": [
+  "servicePhotos": [],
+  "services": [
     {
-      "serviceSlug": "placards-et-rangements",
-      "file": "services/placards-et-rangements-dressing.jpg",
-      "alt": "Dressing avec penderies, étagères éclairées et îlot central",
-      "main": true
+      "slug": "cuisines-modernes",
+      "title": "Cuisines modernes",
+      "displayOrder": 1,
+      "shortDescription": "Des cuisines sur mesure, pensées pour être belles et pratiques au quotidien.",
+      "description": "Chaque cuisine est conçue selon la configuration de la pièce : rangements, plan de travail, intégration de l'électroménager et finitions.",
+      "includedItems": [
+        "Conception selon les mesures de la pièce",
+        "Choix des façades et du plan de travail",
+        "Rangements et intégration de l'électroménager",
+        "Fabrication et pose"
+      ],
+      "images": [
+        {
+          "file": "../realisations/cuisine-bois-et-vitrines-eclairees/01.jpg",
+          "alt": "Cuisine sur mesure en bois avec vitrines éclairées"
+        },
+        {
+          "file": "../realisations/cuisine-bois-et-vitrines-eclairees/02.jpg",
+          "alt": "Cuisine sur mesure : linéaire avec colonne vitrée"
+        },
+        {
+          "file": "../realisations/cuisine-bois-et-vitrines-eclairees/03.jpg",
+          "alt": "Meubles hauts en bois et crédence d'aspect marbre"
+        },
+        {
+          "file": "../realisations/cuisine-bois-et-vitrines-eclairees/04.jpg",
+          "alt": "Vitrines éclairées et meubles bas de la cuisine"
+        }
+      ],
+      "featured": true,
+      "demo": false
+    },
+    {
+      "slug": "dressings-sur-mesure",
+      "title": "Dressings sur mesure",
+      "displayOrder": 2,
+      "shortDescription": "Des dressings qui exploitent chaque centimètre disponible.",
+      "description": "Penderies, étagères, tiroirs : l'agencement intérieur est défini selon ce que vous souhaitez ranger et la place disponible.",
+      "includedItems": [
+        "Agencement intérieur personnalisé",
+        "Portes battantes ou coulissantes",
+        "Fabrication et pose"
+      ],
+      "images": [
+        {
+          "file": "../../backend/src/main/resources/demo/photos/dressing-1.jpg",
+          "alt": "Photo d'illustration — penderie en bois"
+        },
+        {
+          "file": "../../backend/src/main/resources/demo/photos/dressing-2.jpg",
+          "alt": "Photo d'illustration — penderie"
+        }
+      ],
+      "featured": true,
+      "demo": true
+    },
+    {
+      "slug": "placards-et-rangements",
+      "title": "Placards et rangements",
+      "displayOrder": 3,
+      "shortDescription": "Des placards intégrés, adaptés à vos murs et à vos besoins.",
+      "description": "Nous réalisons des placards et des rangements sur mesure pour les chambres, les entrées et les espaces à optimiser.",
+      "includedItems": [
+        "Prise de mesures",
+        "Choix des finitions",
+        "Fabrication et pose"
+      ],
+      "images": [
+        {
+          "file": "services/placards-et-rangements-dressing.jpg",
+          "alt": "Dressing avec penderies, étagères éclairées et îlot central"
+        }
+      ],
+      "featured": true,
+      "demo": false
+    },
+    {
+      "slug": "amenagement-interieur",
+      "title": "Aménagement intérieur",
+      "displayOrder": 4,
+      "shortDescription": "Un accompagnement complet pour aménager et harmoniser votre intérieur.",
+      "description": "Nous étudions votre espace et vos habitudes pour proposer un aménagement cohérent : agencement, matériaux, mobilier et finitions, de l'idée à la réalisation.",
+      "includedItems": [
+        "Échange sur vos goûts et vos usages",
+        "Proposition d'aménagement",
+        "Sélection du mobilier et des finitions",
+        "Coordination de la réalisation"
+      ],
+      "images": [
+        {
+          "file": "../realisations/tables-basses-bois-et-marbre/01.jpg",
+          "alt": "Salon aménagé avec table basse en bois et marbre"
+        },
+        {
+          "file": "../realisations/salle-a-manger-tables-en-marbre/01.jpg",
+          "alt": "Salle à manger avec table en marbre"
+        }
+      ],
+      "featured": true,
+      "demo": false
+    },
+    {
+      "slug": "menuiserie-bois",
+      "title": "Menuiserie bois",
+      "displayOrder": 5,
+      "shortDescription": "Portes, meubles et ouvrages en bois réalisés sur mesure.",
+      "description": "Nous réalisons des travaux de menuiserie bois adaptés à votre habitat ou à vos locaux.",
+      "includedItems": [
+        "Portes et habillages",
+        "Meubles sur mesure",
+        "Finitions au choix"
+      ],
+      "images": [
+        {
+          "file": "../realisations/tables-basses-bois-et-marbre/03.jpg",
+          "alt": "Table basse ronde en bois avec tiroir"
+        },
+        {
+          "file": "../realisations/tables-basses-bois-et-marbre/02.jpg",
+          "alt": "Tables basses en bois aux formes organiques"
+        }
+      ],
+      "featured": true,
+      "demo": false
+    },
+    {
+      "slug": "menuiserie-aluminium",
+      "title": "Menuiserie aluminium",
+      "displayOrder": 6,
+      "shortDescription": "Fenêtres, baies et ouvrages en aluminium adaptés à vos ouvertures.",
+      "description": "Nous réalisons des travaux de menuiserie aluminium sur mesure pour l'habitat et les locaux professionnels.",
+      "includedItems": [
+        "Fenêtres et baies vitrées",
+        "Portes et cloisons",
+        "Fabrication sur mesure"
+      ],
+      "images": [
+        {
+          "file": "../../backend/src/main/resources/demo/photos/alu-1.jpg",
+          "alt": "Photo d'illustration — grandes baies vitrées"
+        },
+        {
+          "file": "../../backend/src/main/resources/demo/photos/alu-2.jpg",
+          "alt": "Photo d'illustration — fenêtres à châssis métallique"
+        }
+      ],
+      "featured": true,
+      "demo": true
     }
-  ]
+  ],
+  "heroFromProject": "cuisine-bois-et-vitrines-eclairees"
 }

@@ -13,6 +13,7 @@ import java.util.UUID;
 import javax.imageio.ImageIO;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -34,6 +35,7 @@ import ma.nidaldeco.contact.ContactService;
 		"app.public-base-url=https://exemple.test" })
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
+@ExtendWith(DockerRequired.class)
 abstract class IntegrationTest {
 
 	@Autowired

@@ -1,0 +1,63 @@
+# Blueprint Render : une seule application Docker (Spring Boot + React compilé).
+# Référence du format : https://render.com/docs/blueprint-spec
+#
+# AUCUN SECRET ICI. Les valeurs marquées « sync: false » sont demandées par Render lors de la
+# création du Blueprint, puis conservées dans le tableau de bord, jamais dans ce fichier.
+services:
+  - type: web
+    name: nidal-deco
+    runtime: docker
+    # Explicite : sans cette ligne, Render choisirait une instance PAYANTE.
+    plan: free
+    # Europe (Francfort) : la région la plus proche du Maroc. Non modifiable après création.
+    region: frankfurt
+    branch: main
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    numInstances: 1
+    healthCheckPath: /actuator/health
+    autoDeployTrigger: commit
+    envVars:
+      # --- Exécution (valeurs non sensibles) ---
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # Render transmet le trafic au port PORT ; Spring écoute sur SERVER_PORT. Les deux sont alignés.
+      - key: PORT
+        value: "8080"
+      - key: SERVER_PORT
+        value: "8080"
+      - key: FRONTEND_DIST_DIR
+        value: /app/frontend-dist
+      - key: APP_MEDIA_STORAGE
+        value: s3
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SERVER_FORWARD_HEADERS_STRATEGY
+        value: native
+      # --- URL publique : à renseigner avec l'adresse https://….onrender.com attribuée ---
+      # (à défaut, l'application utilise RENDER_EXTERNAL_URL, fournie par Render)
+      - key: APP_PUBLIC_BASE_URL
+        sync: false
+      # --- Base de données Neon ---
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # --- Stockage des images : Supabase Storage (API compatible S3) ---
+      # Endpoint S3 : https://REF.storage.supabase.co/storage/v1/s3
+      - key: S3_ENDPOINT
+        sync: false
+      # Région du projet Supabase (par exemple eu-central-1). Jamais « auto ».
+      - key: S3_REGION
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      # Adresse publique : https://REF.supabase.co/storage/v1/object/public/NOM_DU_BUCKET
+      - key: S3_PUBLIC_BASE_URL
+        sync: false

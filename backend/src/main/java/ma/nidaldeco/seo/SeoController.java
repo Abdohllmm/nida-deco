@@ -34,7 +34,12 @@ public class SeoController {
 
 	static final String META_END = "<!--app-meta:end-->";
 
-	private static final String PAGE_SEGMENT = "^(?!api$|media$|assets$)[^.]+$";
+	/**
+	 * Premier segment d'une « page inconnue ». Les préfixes du backend (api, media,
+	 * assets, actuator) n'y entrent jamais ; admin non plus, car /admin/** a sa propre
+	 * route et doit répondre 200 quelle que soit la profondeur de l'adresse.
+	 */
+	private static final String PAGE_SEGMENT = "^(?!api$|media$|assets$|actuator$|admin$)[^.]+$";
 
 	private final SeoService seo;
 

@@ -1,0 +1,44 @@
+# Tout ce qui n'a rien à faire dans le contexte de construction Docker.
+# L'image n'utilise que frontend/ (sources) et backend/ (pom + sources).
+
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+
+# Git, éditeurs, outils
+.git
+.gitignore
+.github
+.idea
+.vscode
+**/*.iml
+**/.DS_Store
+**/Thumbs.db
+
+# Dépendances et résultats de build (reconstruits dans l'image)
+**/node_modules
+frontend/dist
+frontend/test-results
+frontend/playwright-report
+frontend/coverage
+backend/target
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Médias locaux, sauvegardes et photos de travail
+data
+backups
+contenu
+
+# Scripts d'import, documentation et compose : inutiles à l'exécution
+scripts
+docker-compose.yml
+README.md
+**/*.md
+!frontend/public/**/*.md
+
+# Tests navigateur : non exécutés pendant le build de l'image
+frontend/e2e
+frontend/playwright.config.ts
