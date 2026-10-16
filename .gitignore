@@ -27,3 +27,14 @@ frontend/coverage/
 *.iml
 .DS_Store
 Thumbs.db
+
+# Déploiement serveur / Oracle Cloud : jamais de secrets ni d'état dans Git
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform/
+*.pem
+*_oci
+*_oci.pub
+.oci/
+deploy/**/.env

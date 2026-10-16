@@ -20,18 +20,20 @@ RUN npm run build
 # ---------- 2. Backend : JAR exécutable (Maven officiel, Java 21) ----------
 FROM maven:3.9-eclipse-temurin-21 AS backend
 WORKDIR /build
+# Dépendances d'abord, dans une couche à part : tant que pom.xml ne change pas, elles ne sont
+# pas retéléchargées. (Pas de « RUN --mount=type=cache » : Railway impose un identifiant de
+# cache propre à chaque service, que ce fichier ne peut pas connaître.)
+# Préchargement « au mieux » : go-offline ne résout pas toujours toutes les dépendances de test ;
+# celles qui manquent sont téléchargées par « mvn package » ci-dessous, qui échoue si une
+# dépendance est réellement introuvable.
 COPY backend/pom.xml ./
+RUN mvn -B -q -Dmaven.wagon.http.retryHandler.count=5 dependency:go-offline || true
 COPY backend/src ./src
 ARG SKIP_TESTS=false
-# Le dépôt Maven local est conservé dans un cache de construction : les dépendances ne sont
-# téléchargées qu'une fois, et une construction interrompue (coupure réseau) reprend où elle
-# s'était arrêtée.
-#
 # Les tests unitaires s'exécutent toujours. Les tests d'intégration ont besoin de Docker
 # (PostgreSQL jetable) : indisponible pendant un « docker build », ils y sont signalés
 # comme ignorés. Lancez-les avec « ./mvnw test » sur une machine où Docker tourne.
-RUN --mount=type=cache,target=/root/.m2 \
-    mvn -B -q -Dmaven.wagon.http.retryHandler.count=5 package -DskipTests=${SKIP_TESTS} \
+RUN mvn -B -q -Dmaven.wagon.http.retryHandler.count=5 package -DskipTests=${SKIP_TESTS} \
     && cp target/nidaldeco-backend-*.jar /build/app.jar
 
 # ---------- 3. Exécution : JRE 21 minimal, utilisateur non-root ----------

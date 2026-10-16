@@ -135,6 +135,34 @@ class ContactAndSettingsIntegrationTest extends IntegrationTest {
 			.andExpect(jsonPath("$.fieldErrors.secondaryWhatsappNumber").exists());
 		jdbc.update("update company_settings set whatsapp_number = '212661568771', secondary_phone = '0653878201', "
 				+ "secondary_whatsapp_number = '212653878201'");
+		settingsService.evict();
+	}
+
+	@Test
+	void settingsChangesAreVisibleImmediatelyDespiteTheCache() throws Exception {
+		// Lecture mise en cache, puis modification depuis l'administration : la page et l'API
+		// publiques reflètent aussitôt la nouvelle valeur.
+		mvc.perform(get("/api/public/settings")).andExpect(jsonPath("$.heroSubtitle").exists());
+		String update = """
+				{"displayName":"NIDAL DECO TEST","phone":"0661568771","whatsappNumber":"212661568771",
+				 "secondaryPhone":"0653878201","secondaryWhatsappNumber":"212653878201",
+				 "instagramUrl":"https://www.instagram.com/nidal_deco1/","contactEmail":"","city":"Casablanca",
+				 "address":"","openingHours":"","aboutText":"Texte","heroTitle":"Titre","heroSubtitle":"Nouveau sous-titre",
+				 "introTitle":"Intro","introText":"Texte"}
+				""";
+		try {
+			mvc.perform(put("/api/admin/settings").with(admin())
+				.with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(update)).andExpect(status().isOk());
+			mvc.perform(get("/api/public/settings"))
+				.andExpect(jsonPath("$.heroSubtitle").value("Nouveau sous-titre"))
+				.andExpect(jsonPath("$.displayName").value("NIDAL DECO TEST"));
+		}
+		finally {
+			jdbc.update("update company_settings set display_name = 'NIDAL DECO'");
+			settingsService.evict();
+		}
 	}
 
 	@Test

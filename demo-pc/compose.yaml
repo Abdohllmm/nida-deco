@@ -1,0 +1,83 @@
+# Démonstration sur un PC : application Docker existante + Cloudflare Quick Tunnel.
+#
+# Ce n'est PAS un hébergement permanent : le site n'est joignable que tant que le PC,
+# Docker, le tunnel et la connexion Internet restent actifs, et l'URL
+# https://….trycloudflare.com change à chaque nouveau tunnel.
+#
+# Lancement : utilisez demarrer.ps1 (il fixe APP_PUBLIC_BASE_URL avec l'URL attribuée).
+# Les valeurs sont lues dans ../.env.deploy (jamais versionné). Seules les variables
+# listées ci-dessous entrent dans les conteneurs : NEON_API_KEY, RENDER_API_KEY, etc. n'y vont pas.
+name: nidal-deco-demo
+
+services:
+  # Tunnel HTTPS sortant : aucun port entrant n'est ouvert sur le PC ou la box.
+  tunnel:
+    image: cloudflare/cloudflared:2026.9.3
+    # HTTP/2 (TCP) plutôt que QUIC (UDP), le protocole par défaut : sur cette connexion, QUIC
+    # perdait sa liaison avec Cloudflare en boucle (11 coupures en 1 h, plus de 20 min de panne).
+    command: ["tunnel", "--no-autoupdate", "--protocol", "http2", "--url", "http://app:8080"]
+    networks: [demo]
+    # Un redémarrage du processus créerait une NOUVELLE URL : on le laisse arrêté et
+    # demarrer.ps1 recrée l'ensemble de façon cohérente.
+    restart: "no"
+
+  app:
+    image: nidal-deco:latest
+    # Profil : « docker compose up » seul ne démarre jamais l'application. Elle n'est lancée
+    # que par demarrer.ps1, une fois l'URL du tunnel connue.
+    profiles: ["app"]
+    networks:
+      demo:
+        aliases: [app]
+    # Garde-fou : sans URL publique HTTPS, le conteneur refuse de démarrer.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        case "$$APP_PUBLIC_BASE_URL" in
+          https://*) exec java -jar /app/app.jar ;;
+          *) echo "APP_PUBLIC_BASE_URL absente ou non HTTPS : lancez demarrer.ps1." >&2; exit 64 ;;
+        esac
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: "8080"
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:-}
+      APP_MEDIA_STORAGE: s3
+      SESSION_COOKIE_SECURE: "true"
+      # Le tunnel transmet X-Forwarded-Proto ; Tomcat ne s'y fie que pour les adresses
+      # privées, ce qui est le cas du conteneur « tunnel » sur le réseau Docker interne.
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+      DB_URL: ${DB_URL:-}
+      DB_USERNAME: ${DB_USERNAME:-}
+      DB_PASSWORD: ${DB_PASSWORD:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      # Neon Free met la base en veille après 5 min d'inactivité. Une connexion ouverte coûte
+      # environ 0,5 s à créer depuis ce PC : on garde celles déjà ouvertes 4 min (les visites
+      # rapprochées restent rapides), puis on les ferme avant la veille. Rien ne réveille Neon
+      # artificiellement : aucune connexion n'est recréée sans visite (minimum-idle 0) et le
+      # « keepalive » de Hikari, actif par défaut toutes les 2 min, est désactivé.
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "0"
+      SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: "240000"
+      SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: "290000"
+      SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME: "0"
+    # Le contrôle de santé de l'image interroge la base toutes les 30 s, ce qui empêcherait
+    # Neon de se mettre en veille : ici on ne vérifie que l'état du processus (liveness).
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/actuator/health/liveness || exit 1"]
+      interval: 60s
+      timeout: 5s
+      start_period: 90s
+      retries: 3
+    # Accès local de contrôle uniquement (127.0.0.1) : rien n'est publié sur le réseau.
+    ports:
+      - "127.0.0.1:8090:8080"
+    restart: on-failure:3
+
+networks:
+  demo:
+    name: nidal-deco-demo

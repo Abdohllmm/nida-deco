@@ -118,7 +118,9 @@ public class MediaService {
 	}
 
 	private MediaDto.Admin toAdmin(MediaAsset a) {
-		return new MediaDto.Admin(a.getId(), "/media/" + a.getFilename(), a.getAltText(), a.getWidth(), a.getHeight(),
+		// Comme MediaDto : adresse publique directe avec un stockage objet, sans passer par « /media/ ».
+		String url = storage.publicUrl(a.getFilename()).map(Object::toString).orElse("/media/" + a.getFilename());
+		return new MediaDto.Admin(a.getId(), url, a.getAltText(), a.getWidth(), a.getHeight(),
 				a.getOriginalName(), a.getContentType(), a.getSizeBytes(), repository.countUsages(a.getId()),
 				a.getCreatedAt());
 	}

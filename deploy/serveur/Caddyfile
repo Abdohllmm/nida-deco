@@ -1,0 +1,22 @@
+# HTTPS automatique pour SITE_ADDRESS : un nom de domaine (ex. nidaldeco.ma) ou l'adresse IP
+# publique du serveur (ex. 203.0.113.10).
+#
+# Pour une adresse IP, Caddy utiliserait par défaut son autorité locale (certificat auto-signé,
+# refusé par les navigateurs). L'émetteur est donc imposé : Let's Encrypt (ACME) uniquement,
+# profil « shortlived » (certificats de 6 jours, seuls autorisés pour une IP), sans repli local.
+# Le renouvellement est automatique (bien avant l'expiration) ; les certificats et le compte
+# ACME sont conservés dans le volume caddy_data.
+{
+	# Les navigateurs n'envoient pas de nom (SNI) quand on se connecte par IP.
+	default_sni {$SITE_ADDRESS}
+}
+
+{$SITE_ADDRESS} {
+	tls {
+		issuer acme {
+			dir https://acme-v02.api.letsencrypt.org/directory
+			profile shortlived
+		}
+	}
+	reverse_proxy app:8080
+}

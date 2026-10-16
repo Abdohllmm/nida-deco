@@ -55,6 +55,8 @@ export default function HomePage() {
   });
   const s = settings.data;
   const name = s?.displayName || "NIDAL DECO";
+  // Paramètres connus, ou en échec : on affiche alors les textes et l'image par défaut.
+  const settingsDone = !settings.isPending;
 
   useSeo({ title: "Aménagement intérieur et menuiserie sur mesure à Casablanca", description: s?.heroSubtitle });
 
@@ -70,8 +72,8 @@ export default function HomePage() {
                 {name}
                 {s?.city ? ` · ${s.city}` : ""}
               </p>
-              {s ? (
-                <h1 className="text-4xl leading-[1.08] text-white sm:text-5xl xl:text-[3.5rem]">{s.heroTitle || "Votre intérieur, pensé et réalisé sur mesure."}</h1>
+              {settingsDone ? (
+                <h1 className="text-4xl leading-[1.08] text-white sm:text-5xl xl:text-[3.5rem]">{s?.heroTitle || "Votre intérieur, pensé et réalisé sur mesure."}</h1>
               ) : (
                 <Skeleton className="h-32 w-full bg-white/10" />
               )}
@@ -87,12 +89,16 @@ export default function HomePage() {
             </div>
           </div>
           <div className="relative h-72 sm:h-96 lg:h-auto">
-            <img
-              src={s?.heroImage?.url ?? "/images/hero.jpg"}
-              alt={s?.heroImage?.alt || "Cuisine moderne aménagée sur mesure"}
-              fetchPriority="high"
-              className="absolute inset-0 size-full object-cover"
-            />
+            {/* Rendue une fois l'image choisie connue : sinon l'image par défaut serait téléchargée
+                puis aussitôt remplacée. Pas de lazy-load : c'est l'image principale. */}
+            {settingsDone && (
+              <img
+                src={s?.heroImage?.url ?? "/images/hero.jpg"}
+                alt={s?.heroImage?.alt || "Cuisine moderne aménagée sur mesure"}
+                fetchPriority="high"
+                className="absolute inset-0 size-full object-cover"
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-ink/60 to-transparent lg:bg-gradient-to-r lg:from-ink lg:via-ink/15 lg:to-transparent" aria-hidden="true" />
             <div
               // Sur mobile, la carte laisse la place du bouton WhatsApp flottant à droite.

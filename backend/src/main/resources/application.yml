@@ -27,6 +27,10 @@ server:
   # PORT est la variable fournie par la plupart des hébergeurs de conteneurs.
   port: ${SERVER_PORT:${PORT:8080}}
   forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:none}
+  # Scripts, styles, HTML et JSON compressés (gzip) : environ 3 fois moins d'octets à envoyer,
+  # ce qui compte quand la connexion montante du serveur est lente. Seuil de 2 Ko par défaut.
+  compression:
+    enabled: true
   error:
     include-message: never
     include-stacktrace: never

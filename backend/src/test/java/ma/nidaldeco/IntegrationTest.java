@@ -29,6 +29,7 @@ import com.jayway.jsonpath.JsonPath;
 
 import ma.nidaldeco.auth.LoginRateLimiter;
 import ma.nidaldeco.contact.ContactService;
+import ma.nidaldeco.settings.SettingsService;
 
 @SpringBootTest(properties = { "app.media.storage-dir=target/test-media", "app.media.max-file-size=1MB",
 		"app.security.login-max-attempts=3", "app.security.contact-max-per-window=3", "app.frontend.dist-dir=",
@@ -50,6 +51,9 @@ abstract class IntegrationTest {
 	@Autowired
 	private ContactService contactService;
 
+	@Autowired
+	protected SettingsService settingsService;
+
 	@BeforeEach
 	void resetState() {
 		jdbc.update("update company_settings set logo_id = null, hero_image_id = null");
@@ -61,6 +65,8 @@ abstract class IntegrationTest {
 		}
 		loginRateLimiter.clear();
 		contactService.resetRateLimit();
+		// Paramètres modifiés en SQL ci-dessus, hors de l'application : le cache doit être vidé.
+		settingsService.evict();
 	}
 
 	/** Administrateur simulé, pour les tests qui ne portent pas sur la connexion elle-même. */

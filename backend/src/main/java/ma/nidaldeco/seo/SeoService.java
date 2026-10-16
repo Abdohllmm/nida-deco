@@ -14,8 +14,8 @@ import ma.nidaldeco.media.MediaAsset;
 import ma.nidaldeco.offering.ServiceOfferingRepository;
 import ma.nidaldeco.product.ProductRepository;
 import ma.nidaldeco.project.ProjectRepository;
-import ma.nidaldeco.settings.CompanySettings;
-import ma.nidaldeco.settings.CompanySettingsRepository;
+import ma.nidaldeco.settings.SettingsDtos.View;
+import ma.nidaldeco.settings.SettingsService;
 
 /** Métadonnées et plan du site, construits à partir des contenus publiés uniquement. */
 @Service
@@ -23,7 +23,8 @@ public class SeoService {
 
 	private static final DateTimeFormatter DAY = DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneOffset.UTC);
 
-	private final CompanySettingsRepository settings;
+	/** Paramètres mis en cache : chaque page HTML en a besoin, sans requête en base à chaque fois. */
+	private final SettingsService settings;
 
 	private final ServiceOfferingRepository services;
 
@@ -31,25 +32,22 @@ public class SeoService {
 
 	private final ProjectRepository projects;
 
-	public SeoService(CompanySettingsRepository settings, ServiceOfferingRepository services,
-			ProductRepository products, ProjectRepository projects) {
+	public SeoService(SettingsService settings, ServiceOfferingRepository services, ProductRepository products,
+			ProjectRepository projects) {
 		this.settings = settings;
 		this.services = services;
 		this.products = products;
 		this.projects = projects;
 	}
 
-	@Transactional(readOnly = true)
 	public String siteName() {
-		return settings.findById(CompanySettings.SINGLETON_ID).map(CompanySettings::getDisplayName).orElse("NIDAL DECO");
+		return settings.get().displayName();
 	}
 
-	@Transactional(readOnly = true)
 	public PageMeta home() {
-		CompanySettings s = settings.findById(CompanySettings.SINGLETON_ID).orElse(null);
-		String description = s == null ? "" : s.getHeroSubtitle();
-		return PageMeta.content("Décoration intérieure, sur-mesure et mobilier à Casablanca", description,
-				s == null ? null : path(s.getHeroImage()), "website");
+		View s = settings.get();
+		return PageMeta.content("Décoration intérieure, sur-mesure et mobilier à Casablanca", s.heroSubtitle(),
+				s.heroImage() == null ? null : s.heroImage().url(), "website");
 	}
 
 	@Transactional(readOnly = true)

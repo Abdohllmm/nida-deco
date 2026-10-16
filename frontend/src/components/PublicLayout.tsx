@@ -25,7 +25,7 @@ function Brand({ light = false }: { light?: boolean }) {
   return (
     <Link to="/" className="flex shrink-0 items-center gap-3" aria-label={`${name} — retour à l'accueil`}>
       {/* Logo fourni par l'entreprise ; remplaçable dans Administration > Paramètres. */}
-      <img src={settings?.logo?.url ?? "/logo.png"} alt="" width={48} height={48} className="size-11 rounded-full object-cover sm:size-12" />
+      <img src={settings?.logo?.url ?? "/logo-144.webp"} alt="" width={48} height={48} className="size-11 rounded-full object-cover sm:size-12" />
       <span className={`font-display text-lg font-extrabold tracking-[0.08em] sm:text-xl ${light ? "text-white" : "text-ink"}`}>{name}</span>
     </Link>
   );

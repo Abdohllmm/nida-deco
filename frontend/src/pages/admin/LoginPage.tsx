@@ -48,7 +48,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-ivory px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <img src="/logo.png" alt="" width={72} height={72} className="mx-auto size-18 rounded-full" />
+          <img src="/logo-144.webp" alt="" width={72} height={72} className="mx-auto size-18 rounded-full" />
           <h1 className="mt-5 text-3xl">Administration</h1>
           <p className="mt-1 text-sm text-muted">Connectez-vous pour gérer le site.</p>
         </div>

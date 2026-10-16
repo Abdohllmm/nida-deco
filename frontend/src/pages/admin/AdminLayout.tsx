@@ -97,7 +97,7 @@ function Shell() {
 
       <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-white lg:flex">
         <div className="flex items-center gap-3 border-b border-line px-5 py-5">
-          <img src="/logo.png" alt="" width={40} height={40} className="size-10 rounded-full" />
+          <img src="/logo-144.webp" alt="" width={40} height={40} className="size-10 rounded-full" />
           <div>
             <p className="font-display text-lg leading-tight font-semibold tracking-[0.12em]">NIDAL DECO</p>
             <p className="text-xs text-muted">Administration</p>

@@ -60,9 +60,9 @@ class S3MediaIntegrationTest extends IntegrationTest {
 			.andExpect(status().isCreated())
 			.andReturn();
 		String url = JsonPath.read(result.getResponse().getContentAsString(), "$.url");
-		// Le frontend reçoit toujours la même forme d'adresse, quel que soit le stockage.
-		assertThat(url).matches("^/media/[0-9a-f-]{36}\\.png$");
-		String filename = url.substring("/media/".length());
+		// Le navigateur reçoit directement l'adresse publique : aucun passage par l'application.
+		assertThat(url).matches("^https://medias\\.exemple\\.test/media/[0-9a-f-]{36}\\.png$");
+		String filename = url.substring("https://medias.exemple.test/media/".length());
 
 		ArgumentCaptor<PutObjectRequest> put = ArgumentCaptor.forClass(PutObjectRequest.class);
 		verify(s3Client).putObject(put.capture(), any(RequestBody.class));
@@ -70,9 +70,33 @@ class S3MediaIntegrationTest extends IntegrationTest {
 		assertThat(put.getValue().key()).isEqualTo("media/" + filename).doesNotContain("passwd").doesNotContain("..");
 		assertThat(put.getValue().contentType()).isEqualTo("image/png");
 
-		mvc.perform(get(url))
+		// « /media/… » reste valable (anciens liens, image de partage) et redirige.
+		mvc.perform(get("/media/" + filename))
 			.andExpect(status().isFound())
 			.andExpect(header().string("Location", "https://medias.exemple.test/media/" + filename));
+	}
+
+	@Test
+	void publicAndAdminApisGiveTheDirectPublicImageAddress() throws Exception {
+		String image = uploadPng();
+		String category = createProductCategory("Tables");
+		mvc.perform(post("/api/admin/products").with(admin())
+			.with(csrf())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("""
+					{"name":"Table","reference":"TAB-S3","categoryId":"%s","status":"PUBLISHED",
+					 "availability":"IN_STOCK","mainImageId":"%s","galleryIds":[]}
+					""".formatted(category, image)))
+			.andExpect(status().isCreated());
+
+		String direct = "^https://medias\\.exemple\\.test/media/[0-9a-f-]{36}\\.png$";
+		MvcResult list = mvc.perform(get("/api/public/products")).andExpect(status().isOk()).andReturn();
+		String publicUrl = JsonPath.read(list.getResponse().getContentAsString(), "$.items[0].mainImage.url");
+		assertThat(publicUrl).matches(direct);
+		mvc.perform(get("/api/public/products")).andExpect(jsonPath("$.items[0].mainImage.id").value(image));
+
+		MvcResult admin = mvc.perform(get("/api/admin/media").with(admin())).andExpect(status().isOk()).andReturn();
+		assertThat((String) JsonPath.read(admin.getResponse().getContentAsString(), "$.items[0].url")).matches(direct);
 	}
 
 	@Test

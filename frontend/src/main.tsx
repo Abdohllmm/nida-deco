@@ -8,7 +8,7 @@ import { BrowserRouter } from "react-router";
 import App from "./App";
 import { ToastProvider } from "./components/Toast";
 import "./index.css";
-import { ApiError } from "./lib/api";
+import { shouldRetryQuery } from "./lib/api";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,7 +16,7 @@ const queryClient = new QueryClient({
       staleTime: 30 * 1000,
       refetchOnWindowFocus: false,
       // On ne réessaie pas une erreur « normale » (404, 401, 400…) : seulement les pannes réseau ou serveur.
-      retry: (failureCount, error) => failureCount < 2 && !(error instanceof ApiError && error.status >= 400 && error.status < 500),
+      retry: shouldRetryQuery,
     },
   },
 });

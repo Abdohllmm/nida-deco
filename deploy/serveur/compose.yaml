@@ -1,0 +1,75 @@
+# Déploiement sur un serveur (VPS Linux avec Docker) : application + Caddy (HTTPS automatique).
+#
+#   cd deploy/serveur
+#   cp variables.example .env        # puis renseigner les valeurs (fichier ignoré par Git)
+#   docker compose up -d --build
+#
+# Seul Caddy est exposé (ports 80 et 443). L'application n'est joignable que par Caddy.
+# Base de données (Neon) et images (Supabase Storage) restent hébergées à l'extérieur.
+name: nidal-deco
+
+# Journaux bornés : 3 fichiers de 10 Mo maximum par conteneur.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  app:
+    logging: *logging
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+      # Construit pour l'architecture du serveur (ARM64 sur Oracle Ampere A1, AMD64 ailleurs).
+      args:
+        # Les tests d'intégration ont besoin de Docker : lancez « ./mvnw test » avant de déployer.
+        SKIP_TESTS: "false"
+    image: nidal-deco:latest
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: "8080"
+      APP_MEDIA_STORAGE: s3
+      SESSION_COOKIE_SECURE: "true"
+      # Caddy transmet X-Forwarded-Proto ; son adresse sur le réseau Docker est privée, donc reconnue.
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+      APP_PUBLIC_BASE_URL: https://${SITE_ADDRESS:?SITE_ADDRESS manquant dans .env}
+      # Pool vers Neon : connexions fermées après 4 min d'inactivité, sans requête de maintien,
+      # pour laisser la base gratuite se mettre en veille (voir demo-pc/compose.yaml).
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "0"
+      SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT: "240000"
+      SPRING_DATASOURCE_HIKARI_MAX_LIFETIME: "290000"
+      SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME: "0"
+    expose:
+      - "8080"
+    # Le contrôle intégré à l'image interroge la base toutes les 30 s, ce qui empêcherait Neon
+    # de se mettre en veille : on ne vérifie ici que le processus.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/actuator/health/liveness || exit 1"]
+      interval: 60s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+    restart: unless-stopped
+
+  caddy:
+    logging: *logging
+    image: caddy:2.11.6-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?SITE_ADDRESS manquant dans .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
