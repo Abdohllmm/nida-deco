@@ -9,6 +9,11 @@
 {
 	# Les navigateurs n'envoient pas de nom (SNI) quand on se connecte par IP.
 	default_sni {$SITE_ADDRESS}
+	# HTTP/3 (UDP) désactivé : sur des réseaux qui perdent l'UDP, le navigateur attendait
+	# ~12 s avant de revenir à TCP (mesuré : « Network blackhole detected »).
+	servers {
+		protocols h1 h2
+	}
 }
 
 {$SITE_ADDRESS} {

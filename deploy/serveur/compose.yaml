@@ -59,7 +59,6 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp"
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?SITE_ADDRESS manquant dans .env}
     volumes:
